@@ -865,236 +865,373 @@ const Analytics = (() => {
 // ═══════════════════════════════════════════════════════════════════════════
 const ExcelBuilder = (() => {
 
+  // ─── Paleta ───────────────────────────────────────────────────────────────
   const X = CONFIG.XL;
-  const fill   = a => ({ type:'pattern', pattern:'solid', fgColor:{argb:a} });
-  const font   = ({s=9,b=false,i=false,c=X.sl9}={}) =>
+  const fill  = a => ({ type:'pattern', pattern:'solid', fgColor:{argb:a} });
+  const font  = ({s=9,b=false,i=false,c=X.sl9}={}) =>
     ({ name:'Calibri', size:s, bold:b, italic:i, color:{argb:c} });
-  const align  = (h='left', v='middle', w=false) =>
+  const align = (h='left',v='middle',w=false) =>
     ({ horizontal:h, vertical:v, wrapText:w });
-  const bd     = (a=X.border) => { const s={style:'thin',color:{argb:a}}; return {top:s,left:s,bottom:s,right:s}; };
-  const bdMed  = (a=X.sl9)    => { const s={style:'medium',color:{argb:a}};return {top:s,left:s,bottom:s,right:s}; };
-
-  const hCell = (cell, v, bg, {s=9,fc=X.white,ah='center',italic=false}={}) => {
-    cell.value=v; cell.fill=fill(bg);
-    cell.font=font({s,b:true,i:italic,c:fc});
-    cell.alignment=align(ah,'middle'); cell.border=bd(bg);
-  };
-  const dCell = (cell, v, bg, {c=X.sl9,b=false,ah='left',wrap=false}={}) => {
-    cell.value=v; cell.fill=fill(bg);
-    cell.font=font({c,b,s:8}); cell.alignment=align(ah,'middle',wrap); cell.border=bd();
+  const bd    = (a=X.border) => {
+    const t = {style:'thin',color:{argb:a}};
+    return {top:t,left:t,bottom:t,right:t};
   };
 
-  // ── Mini barra horizontal usando blocos Unicode ─────────────────────────
-  const miniBar = (v, max, len=20) => {
-    const filled = max > 0 ? Math.round((v/max)*len) : 0;
-    return '█'.repeat(filled) + '░'.repeat(len - filled);
+  // Escreve célula completa
+  const wc = (cell, v, {bg,c=X.sl9,s=9,b=false,i=false,h='left',v2='middle',wrap=false,border=true}={}) => {
+    cell.value = v;
+    if(bg) cell.fill = fill(bg);
+    cell.font = font({s,b,i,c});
+    cell.alignment = align(h,v2,wrap);
+    if(border) cell.border = bd();
   };
 
-  // ── Tabela de resumo no Dashboard ───────────────────────────────────────
-  const summaryTable = (ws, startR, title, titleBg, hdrs, rows) => {
-    ws.getRow(startR-1).height = 8;
-    ws.mergeCells(`B${startR}:H${startR}`);
-    const tc = ws.getCell(`B${startR}`);
-    tc.value=`  ${title}`; tc.fill=fill(titleBg);
-    tc.font=font({s:10,b:true,c:X.white}); tc.alignment=align('left');
-    ws.getRow(startR).height = 22;
-    let r = startR+1;
-    hdrs.forEach((h,i) => hCell(ws.getCell(r,i+2), h, X.b700));
-    ws.getRow(r).height = 18;
-    const maxVal = rows.reduce((m,row) => {
-      const v = typeof row[2]==='number' ? row[2] : 0; return v > m ? v : m;
-    }, 0);
-    rows.forEach((row, idx) => {
-      r++;
-      const bg = idx%2===0 ? X.alt : X.white;
-      row.forEach((v,i) => {
-        const cell = ws.getCell(r,i+2);
-        const ah = (i>1 && i<row.length-1) ? 'center' : 'left';
-        dCell(cell, v, bg, {ah});
-        // Coluna de barra visual
-        if(i===row.length-2 && typeof row[2]==='number'){
-          const barCell = ws.getCell(r, row.length+2);
-          barCell.value = miniBar(row[2], maxVal, 15);
-          barCell.fill  = fill(bg);
-          barCell.font  = font({c:X.b500, s:7});
-          barCell.alignment = align('left','middle');
-          barCell.border = bd();
-        }
-      });
-      ws.getRow(r).height = 16;
+  // ─── Cabeçalho de seção (linha título) ────────────────────────────────────
+  const sectionHeader = (ws, row, colFrom, colTo, text, bg) => {
+    ws.getRow(row).height = 22;
+    ws.mergeCells(row, colFrom, row, colTo);
+    const cell = ws.getCell(row, colFrom);
+    cell.value = text;
+    cell.fill  = fill(bg);
+    cell.font  = font({s:10, b:true, c:X.white});
+    cell.alignment = align('center','middle');
+  };
+
+  // ─── KPI Card (ocupa 2 colunas x 4 linhas) ────────────────────────────────
+  const kpiCard = (ws, startRow, startCol, {icon, label, value, sub, bg}) => {
+    for(let r=startRow; r<startRow+4; r++){
+      for(let c=startCol; c<startCol+2; c++){
+        ws.getCell(r,c).fill = fill(bg);
+      }
+    }
+    // linha 1 – ícone + label
+    ws.mergeCells(startRow,   startCol, startRow,   startCol+1);
+    ws.mergeCells(startRow+1, startCol, startRow+1, startCol+1);
+    ws.mergeCells(startRow+2, startCol, startRow+2, startCol+1);
+    ws.mergeCells(startRow+3, startCol, startRow+3, startCol+1);
+
+    const lc = ws.getCell(startRow, startCol);
+    lc.value = `${icon}  ${label}`;
+    lc.fill  = fill(bg);
+    lc.font  = font({s:7, b:true, c:'BFDBFE'});
+    lc.alignment = align('center','middle');
+    ws.getRow(startRow).height = 16;
+
+    const vc = ws.getCell(startRow+1, startCol);
+    vc.value = String(value);
+    vc.fill  = fill(bg);
+    vc.font  = font({s:22, b:true, c:X.white});
+    vc.alignment = align('center','middle');
+    ws.getRow(startRow+1).height = 28;
+
+    const sc = ws.getCell(startRow+2, startCol);
+    sc.value = sub;
+    sc.fill  = fill(bg);
+    sc.font  = font({s:7, c:'BFDBFE'});
+    sc.alignment = align('center','middle');
+    ws.getRow(startRow+2).height = 14;
+
+    ws.getRow(startRow+3).height = 5;
+    ws.getCell(startRow+3, startCol).fill = fill(bg);
+  };
+
+  // ─── addTable wrapper limpo ─────────────────────────────────────────────
+  const addTable = (ws, {name, ref, theme, columns, rows}) => {
+    // Garante nome único e sem caracteres especiais
+    const safeName = 'T_' + name.replace(/[^a-zA-Z0-9]/g,'').slice(0,30)
+      + '_' + Math.random().toString(36).slice(2,6);
+    ws.addTable({
+      name: safeName,
+      ref,
+      headerRow: true,
+      totalsRow: false,
+      style: { theme, showRowStripes:true, showFirstColumn:false },
+      columns: columns.map(c => typeof c === 'string'
+        ? {name:c, filterButton:true}
+        : {name:c.name, filterButton:c.filter!==false}
+      ),
+      rows,
     });
-    return r+1;
   };
 
-  // ── Aba de dados padronizada ─────────────────────────────────────────────
-  const HDRS   = ['Nº','Cód. do Bem','Filial','Tipo','Marca','Capacidade',
-                  'Inverter','Endereço','Dt. Aquisição','Dt. Baixa',
-                  'Ano Aq.','Tempo Uso','Status','⚠️','Fonte','Descrição'];
-  const WIDTHS = [5,16,28,22,16,18,10,13,14,14,10,14,11,10,18,55];
-  const KEYS   = ['codBem','filialNome','tipo','marca','capacidadeLabel',
-                  'inverter','endereco','dtAquisicao','dtBaixa',
-                  'anoAquisicao','_tempo','status','_alerta','source','descricao'];
-  const CENTER = new Set(['_n','codBem','anoAquisicao','inverter','_tempo','status','_alerta']);
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  ABA DASHBOARD — organizada em blocos com addTable
+  // ═══════════════════════════════════════════════════════════════════════════
+  const buildDashboard = (wb, st, sources, now) => {
+    const ws = wb.addWorksheet('📊 Dashboard',{
+      properties:{tabColor:{argb:X.b700}}
+    });
+    ws.views = [{showGridLines:false}];
 
-  const makeDataSheet = (wb, name, tabC, hdrBg, recs, now) => {
-    const ws = wb.addWorksheet(name, {properties:{tabColor:{argb:tabC}}});
-    ws.views = [{showGridLines:false, state:'frozen', ySplit:2}];
-    ws.columns = WIDTHS.map(w => ({width:w}));
+    // Larguras de colunas (A=pad, B-O=dados, P=pad)
+    //  A     B    C    D    E    F    G    H    I    J    K    L    M    N   O    P
+    [1.5, 20,   6,   9,   9,   9,   9,   6,  20,   6,   9,   9,   9,   9,  6,  1.5]
+      .forEach((w,i) => ws.getColumn(i+1).width = w);
+
+    // ── BANNER TOPO ──────────────────────────────────────────────────────
+    for(let r=1;r<=5;r++){
+      ws.getRow(r).height = [4,22,16,14,4][r-1];
+      for(let c=1;c<=16;c++) ws.getCell(r,c).fill = fill(X.b700);
+    }
+    ws.mergeCells('B2:O2');
+    const t1 = ws.getCell('B2');
+    t1.value = 'SISTEMA FIEPI  ·  SESI PIAUÍ  —  Gestão de Patrimônio';
+    t1.fill  = fill(X.b700);
+    t1.font  = font({s:13,b:true,c:X.white});
+    t1.alignment = align('center');
+
+    ws.mergeCells('B3:O3');
+    const t2 = ws.getCell('B3');
+    t2.value = `Condicionadores de Ar  ·  ${now}  ·  Fontes: ${sources.join(', ')}`;
+    t2.fill  = fill(X.b700);
+    t2.font  = font({s:8,i:true,c:X.b200});
+    t2.alignment = align('center');
+
+    // ── KPI CARDS (linha 7→10) ───────────────────────────────────────────
+    ws.getRow(6).height = 8;
+    const kpis = [
+      {icon:'📦', label:'TOTAL DE BENS',     value:st.total,             sub:`${st.filiais} filiais`,             bg:X.b700, col:2},
+      {icon:'✅', label:'ATIVOS',            value:st.ativos,            sub:`${st.pct}% do inventário`,          bg:X.g600, col:5},
+      {icon:'❌', label:'BAIXADOS',          value:st.baixados,          sub:`${(100-st.pct).toFixed(1)}%`,       bg:X.r600, col:8},
+      {icon:'📈', label:'TAXA DE ATIVIDADE', value:`${st.pct}%`,         sub:'índice operacional',                bg:'0EA5E9', col:11},
+      {icon:'⚠️', label:'ALERTAS +15 ANOS',  value:st.alertas,           sub:'requerem revisão técnica',          bg:X.a600, col:14},
+    ];
+    kpis.forEach(k => kpiCard(ws, 7, k.col, k));
+
+    // ── SEÇÃO 1 — POR FILIAL ─────────────────────────────────────────────
+    ws.getRow(12).height = 10;
+    sectionHeader(ws, 13, 2, 7, '🏢  DISTRIBUIÇÃO POR FILIAL', X.b700);
+
+    addTable(ws, {
+      name: 'Filial',
+      ref:  'B14',
+      theme:'TableStyleMedium2',
+      columns: [
+        {name:'Filial',      filter:true},
+        {name:'Total',       filter:false},
+        {name:'Ativos',      filter:false},
+        {name:'Baixados',    filter:false},
+        {name:'% Ativo',     filter:false},
+        {name:'Alertas +15', filter:false},
+      ],
+      rows: st.byFilial.map(([n,d]) => {
+        const alerts = 0; // não temos fácil acesso aqui, placeholder
+        const pct = d.total ? Math.round(d.ativo/d.total*100) : 0;
+        return [n.substring(0,35), d.total, d.ativo, d.baixado, `${pct}%`, '—'];
+      }),
+    });
+
+    // ── SEÇÃO 2 — POR TIPO (coluna H→N, mesma altura que filial) ─────────
+    sectionHeader(ws, 13, 9, 15, '🔧  POR TIPO DE EQUIPAMENTO', X.p600);
+
+    addTable(ws, {
+      name: 'Tipo',
+      ref:  'I14',
+      theme:'TableStyleMedium20',
+      columns: [
+        {name:'Tipo de Equipamento', filter:true},
+        {name:'Quantidade',          filter:false},
+        {name:'% do Total',          filter:false},
+        {name:'',                    filter:false},
+        {name:'  ',                  filter:false},
+        {name:'   ',                 filter:false},
+      ],
+      rows: (() => {
+        const total = st.byTipo.reduce((a,[,v])=>a+v,0)||1;
+        return st.byTipo.map(([t,v]) => [
+          t, v, `${(v/total*100).toFixed(1)}%`, '','','',
+        ]);
+      })(),
+    });
+
+    // ── SEÇÃO 3 — POR CAPACIDADE ─────────────────────────────────────────
+    const capStartRow = 14 + Math.max(st.byFilial.length, st.byTipo.length) + 3;
+    ws.getRow(capStartRow - 1).height = 10;
+    sectionHeader(ws, capStartRow, 2, 7, '⚡  POR FAIXA DE CAPACIDADE (BTUs)', X.a600);
+
+    addTable(ws, {
+      name: 'Capacidade',
+      ref:  `B${capStartRow+1}`,
+      theme:'TableStyleMedium23',
+      columns: [
+        {name:'Faixa de Capacidade', filter:true},
+        {name:'Quantidade',          filter:false},
+        {name:'% do Total',          filter:false},
+        {name:'',                    filter:false},
+        {name:'  ',                  filter:false},
+        {name:'   ',                 filter:false},
+      ],
+      rows: (() => {
+        const total = st.byCap.reduce((a,[,v])=>a+v,0)||1;
+        return st.byCap.map(([c,v]) => [
+          c, v, `${(v/total*100).toFixed(1)}%`, '','','',
+        ]);
+      })(),
+    });
+
+    // ── SEÇÃO 4 — POR MARCA ───────────────────────────────────────────────
+    sectionHeader(ws, capStartRow, 9, 15, '🏷️  RANKING DE MARCAS', X.g600);
+
+    addTable(ws, {
+      name: 'Marcas',
+      ref:  `I${capStartRow+1}`,
+      theme:'TableStyleMedium14',
+      columns: [
+        {name:'Marca',      filter:true},
+        {name:'Quantidade', filter:false},
+        {name:'% do Total', filter:false},
+        {name:'',           filter:false},
+        {name:'  ',         filter:false},
+        {name:'   ',        filter:false},
+      ],
+      rows: (() => {
+        const total = st.byMarca.reduce((a,[,v])=>a+v,0)||1;
+        return st.byMarca.slice(0,10).map(([m,v]) => [
+          m, v, `${(v/total*100).toFixed(1)}%`, '','','',
+        ]);
+      })(),
+    });
+
+    // Ajusta altura das linhas de dados das tabelas
+    for(let r=14; r<=14+Math.max(st.byFilial.length,st.byTipo.length); r++){
+      if(ws.getRow(r).height < 1) ws.getRow(r).height = 15;
+    }
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  ABA DE DADOS — addTable com tema nativo + pós-formatação
+  // ═══════════════════════════════════════════════════════════════════════════
+  const DATA_COLS = [
+    {key:'_n',         header:'Nº',             width:5,  center:true },
+    {key:'codBem',     header:'Código do Bem',   width:16, center:true },
+    {key:'filialNome', header:'Filial',           width:30, center:false},
+    {key:'tipo',       header:'Tipo',             width:22, center:false},
+    {key:'marca',      header:'Marca',            width:16, center:false},
+    {key:'capacidade', header:'Capacidade (BTU)', width:18, center:true },
+    {key:'inverter',   header:'Inverter',         width:10, center:true },
+    {key:'endereco',   header:'Endereço',         width:13, center:true },
+    {key:'dtAq',       header:'Dt. Aquisição',    width:14, center:true },
+    {key:'dtBx',       header:'Dt. Baixa',        width:14, center:true },
+    {key:'ano',        header:'Ano Aq.',          width:9,  center:true },
+    {key:'uso',        header:'Tempo de Uso',     width:14, center:true },
+    {key:'status',     header:'Status',           width:11, center:true },
+    {key:'alerta',     header:'Alerta',           width:10, center:true },
+    {key:'fonte',      header:'Fonte',            width:18, center:false},
+    {key:'descricao',  header:'Descrição Completa',width:55,center:false},
+  ];
+
+  const THEMES = {
+    completo: 'TableStyleMedium2',
+    ativo:    'TableStyleMedium7',
+    baixado:  'TableStyleMedium3',
+  };
+
+  const buildDataSheet = (wb, sheetName, tabColor, themeKey, recs, now) => {
+    const ws = wb.addWorksheet(sheetName, {
+      properties:{tabColor:{argb:tabColor}}
+    });
+    ws.views = [{showGridLines:false, state:'frozen', ySplit:3}];
+
+    // Widths
+    DATA_COLS.forEach((col,i) => ws.getColumn(i+1).width = col.width);
 
     // Banner
-    const lastCol = String.fromCharCode(64+HDRS.length);
-    ws.mergeCells(`A1:${lastCol}1`);
-    const bc = ws.getCell('A1');
-    bc.value = `  ${name}  —  ${now}`;
-    bc.fill  = fill(hdrBg); bc.font = font({s:12,b:true,c:X.white});
-    bc.alignment = align('left','middle'); ws.getRow(1).height = 26;
-
-    // Headers
-    HDRS.forEach((h,i) => hCell(ws.getCell(2,i+1), h, hdrBg));
-    ws.getRow(2).height = 20;
-
-    // Rows
-    recs.forEach((rec, ri) => {
-      const isBx = rec.status==='Baixado', isAl = rec.alerta;
-      let bg = ri%2===0 ? X.alt : X.white;
-      if(isBx)      bg = ri%2===0 ? 'FFE8E8' : X.r50;
-      else if(isAl) bg = ri%2===0 ? 'FFF3CD' : X.a50;
-
-      const row = ws.getRow(ri+3);
-      const vals = [ri+1, rec.codBem, rec.filialNome, rec.tipo, rec.marca,
-                    rec.capacidadeLabel, rec.inverter ? 'Sim':'Não',
-                    rec.endereco, rec.dtAquisicao, rec.dtBaixa,
-                    rec.anoAquisicao||'', rec.tempoUso!=null?`${rec.tempoUso} anos`:'',
-                    rec.status, rec.alerta?'⚠️':'', rec.source, rec.descricao];
-
-      vals.forEach((v,ci) => {
-        const key = ci===0?'_n':KEYS[ci-1];
-        const cell = ws.getCell(ri+3, ci+1);
-        let color=X.sl9, bold=false;
-        if(key==='status'){ color=rec.status==='Ativo'?X.g800:X.r800; bold=true; }
-        else if(key==='marca')   color=X.b700;
-        else if(key==='tipo')    color=X.p600;
-        else if(key==='_alerta'&&v) color=X.a800;
-        else if(key==='inverter'&&v==='Sim') color=X.g600;
-        dCell(cell, v, bg, {c:color, b:bold, ah:CENTER.has(key)?'center':'left'});
-      });
-      row.height = 15;
-
-      // Conditional formatting: Tempo Uso (col 12) com cor por idade
-      if(rec.tempoUso !== null) {
-        const tCell = ws.getCell(ri+3, 12);
-        let tColor = X.g800;
-        if(rec.tempoUso >= 15)      tColor = X.r800;
-        else if(rec.tempoUso >= 10) tColor = X.a800;
-        tCell.font = font({s:8, b:rec.tempoUso>=15, c:tColor});
-      }
+    ws.getRow(1).height = 26;
+    const lastL = String.fromCharCode(64 + DATA_COLS.length);
+    ws.mergeCells(`A1:${lastL}1`);
+    wc(ws.getCell('A1'), `  ${sheetName}  —  ${now}`, {
+      bg:tabColor, c:X.white, s:12, b:true, h:'left', border:false
     });
 
-    ws.autoFilter = {from:{row:2,column:1}, to:{row:recs.length+2,column:HDRS.length}};
+    ws.getRow(2).height = 4;
+    for(let c=1;c<=DATA_COLS.length;c++) ws.getCell(2,c).fill = fill(tabColor);
+
+    // Adiciona tabela nativa do Excel
+    const rowData = recs.map((r,i) => [
+      i+1,
+      r.codBem,
+      r.filialNome,
+      r.tipo,
+      r.marca,
+      r.capacidadeLabel || '',
+      r.inverter ? 'Sim' : 'Não',
+      r.endereco || '',
+      r.dtAquisicao || '',
+      r.dtBaixa || '',
+      r.anoAquisicao || '',
+      r.tempoUso != null ? `${r.tempoUso} anos` : '',
+      r.status,
+      r.alerta ? '⚠️ Revisar' : '',
+      r.source,
+      r.descricao,
+    ]);
+
+    addTable(ws, {
+      name:    sheetName,
+      ref:     'A3',
+      theme:   THEMES[themeKey],
+      columns: DATA_COLS.map(c => ({name:c.header, filter:true})),
+      rows:    rowData,
+    });
+
+    // Pós-formatação (alinhamento + cores especiais)
+    ws.getRow(3).height = 20; // header
+    recs.forEach((rec, ri) => {
+      const r = ri + 4;
+      ws.getRow(r).height = 15;
+
+      DATA_COLS.forEach((col, ci) => {
+        const cell = ws.getCell(r, ci+1);
+        cell.alignment = align(col.center?'center':'left','middle');
+
+        switch(col.key){
+          case 'status':
+            cell.font = font({s:8,b:true,
+              c:rec.status==='Ativo'?X.g800:X.r800}); break;
+          case 'marca':
+            cell.font = font({s:8,c:X.b700}); break;
+          case 'tipo':
+            cell.font = font({s:8,c:X.p600}); break;
+          case 'alerta':
+            if(rec.alerta) cell.font = font({s:8,b:true,c:X.a800}); break;
+          case 'inverter':
+            if(rec.inverter) cell.font = font({s:8,c:X.g600}); break;
+          case 'uso':
+            if(rec.tempoUso!=null){
+              const uc = rec.tempoUso>=15?X.r800:rec.tempoUso>=10?X.a800:X.g800;
+              cell.font = font({s:8,b:rec.tempoUso>=15,c:uc});
+            } break;
+          default:
+            cell.font = font({s:8});
+        }
+      });
+    });
+
     // Rodapé
-    const fr = recs.length+3;
-    ws.mergeCells(fr,1,fr,5);
-    const fc = ws.getCell(fr,1);
-    fc.value=`Total: ${recs.length} registros`; fc.fill=fill(X.b50);
-    fc.font=font({s:8,i:true,c:X.sl5}); fc.border=bd();
+    const fr = recs.length + 4;
+    ws.getRow(fr).height = 14;
+    ws.mergeCells(fr,1,fr,8);
+    wc(ws.getCell(fr,1), `  ✦  Total de registros: ${recs.length}`, {
+      bg:X.b50, c:X.sl5, s:8, i:true, h:'left'
+    });
   };
 
-  // ── Build principal ──────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  BUILD PRINCIPAL
+  // ═══════════════════════════════════════════════════════════════════════════
   const build = async (records, sources) => {
     const wb  = new ExcelJS.Workbook();
     const st  = Analytics.computeStats(records);
     const now = new Date().toLocaleString('pt-BR');
 
-    // ════════════════════════════════════════════════════
-    //  ABA 1 — DASHBOARD
-    // ════════════════════════════════════════════════════
-    const ws1 = wb.addWorksheet('📊 Dashboard',{properties:{tabColor:{argb:X.b700}}});
-    ws1.views = [{showGridLines:false}];
-    // Col widths: A(pad) B-H(dados) I(barra) I(pad)
-    [1.5,14,14,12,12,12,12,14,22,1.5].forEach((w,i) =>
-      ws1.getColumn(i+1).width = w
-    );
+    buildDashboard(wb, st, sources, now);
 
-    // ── Banner institucional ──
-    for(let r=1; r<=5; r++){
-      ws1.getRow(r).height = r===1||r===5 ? 5 : r===3 ? 18 : 20;
-      for(let c=1; c<=10; c++) ws1.getCell(r,c).fill = fill(X.b700);
-    }
-    ws1.mergeCells('B2:I2');
-    hCell(ws1.getCell('B2'),
-      'SISTEMA FIEPI  ·  SESI PIAUÍ  —  Inventário de Patrimônio',
-      X.b700, {s:13, ah:'center'});
-    ws1.mergeCells('B3:I3');
-    const sc = ws1.getCell('B3');
-    sc.value=`Condicionadores de Ar  |  Fontes: ${sources.join(', ')}  |  ${now}`;
-    sc.fill=fill(X.b700); sc.font=font({s:8,i:true,c:X.b200});
-    sc.alignment=align('center');
-
-    // ── KPI Cards — linha 7-11 (5 cards) ──
-    ws1.getRow(6).height = 10;
-    [7,8,9,10,11].forEach((r,i) => ws1.getRow(r).height=[5,18,28,14,5][i]);
-
-    const kpis = [
-      {col:2, label:'TOTAL DE BENS', val:st.total,
-       sub:`${st.filiais} filial(is)`, bg:X.b700},
-      {col:3, label:'ATIVOS', val:st.ativos,
-       sub:`${st.pct}% do total`, bg:X.g600},
-      {col:5, label:'BAIXADOS', val:st.baixados,
-       sub:`${(100-st.pct).toFixed(1)}% do total`, bg:X.r600},
-      {col:6, label:'TAXA ATIVO', val:`${st.pct}%`,
-       sub:'índice de atividade', bg:'0EA5E9'},
-      {col:8, label:'ALERTAS +15 ANOS', val:st.alertas,
-       sub:'precisam de revisão', bg:X.a600},
-    ];
-
-    for(const k of kpis){
-      for(let r=7; r<=11; r++){
-        ws1.getCell(r,k.col).fill = fill(k.bg);
-        ws1.mergeCells(r,k.col,r,k.col);
-      }
-      // Label
-      const lc = ws1.getCell(8,k.col);
-      lc.value=k.label; lc.fill=fill(k.bg);
-      lc.font=font({s:7,b:true,c:'BFDBFE'});
-      lc.alignment=align('center');
-      // Valor
-      const vc = ws1.getCell(9,k.col);
-      vc.value=String(k.val); vc.fill=fill(k.bg);
-      vc.font=font({s:20,b:true,c:X.white});
-      vc.alignment=align('center');
-      // Sub
-      const subc = ws1.getCell(10,k.col);
-      subc.value=k.sub; subc.fill=fill(k.bg);
-      subc.font=font({s:7,c:'BFDBFE'}); subc.alignment=align('center');
-    }
-
-    // ── Tabelas do dashboard ──
-    let nr=14;
-    nr = summaryTable(ws1, nr, 'DISTRIBUIÇÃO POR FILIAL', X.b700,
-      ['Filial','','Total','Ativos','Baixados','% Ativo',''],
-      st.byFilial.map(([n,d]) => [
-        n.substring(0,30),'',d.total,d.ativo,d.baixado,
-        d.total?`${Math.round(d.ativo/d.total*100)}%`:'0%','',
-      ])
-    );
-    nr = summaryTable(ws1, nr+1, 'POR TIPO DE EQUIPAMENTO', X.p600,
-      ['Tipo','','Qtd.','','','',''],
-      st.byTipo.map(([t,q]) => [t,'',q,'','','',''])
-    );
-    const col2 = nr;
-    nr = summaryTable(ws1, nr+1, 'POR CAPACIDADE (BTUs)', X.a600,
-      ['Faixa de Capacidade','','Qtd.','','','',''],
-      st.byCap.map(([c,q]) => [c,'',q,'','','',''])
-    );
-    summaryTable(ws1, nr+1, 'RANKING DE MARCAS', X.g600,
-      ['Marca','','Qtd.','','','',''],
-      st.byMarca.map(([m,q]) => [m,'',q,'','','',''])
-    );
-
-    // ── Abas de dados ──
-    makeDataSheet(wb,'📋 Inventário Completo', X.sl9, X.b700, records, now);
-    makeDataSheet(wb,'✅ Ativos',              X.g600,X.g600, records.filter(r=>r.status==='Ativo'), now);
-    makeDataSheet(wb,'❌ Baixados',            X.r600,X.r600, records.filter(r=>r.status==='Baixado'), now);
+    buildDataSheet(wb, '📋 Inventário Completo', X.sl9,  'completo',
+      records, now);
+    buildDataSheet(wb, '✅ Ativos',              X.g600, 'ativo',
+      records.filter(r => r.status === 'Ativo'), now);
+    buildDataSheet(wb, '❌ Baixados',            X.r600, 'baixado',
+      records.filter(r => r.status === 'Baixado'), now);
 
     return wb.xlsx.writeBuffer();
   };
@@ -1102,9 +1239,6 @@ const ExcelBuilder = (() => {
   return { build };
 })();
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  [PDF-OUT] Geração de relatório PDF profissional — jsPDF + AutoTable
-// ═══════════════════════════════════════════════════════════════════════════
 const PDFBuilder = (() => {
 
   const C = CONFIG.PDF;
