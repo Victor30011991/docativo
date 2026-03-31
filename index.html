@@ -4,469 +4,147 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DocAtivo — PDF para Excel em segundos</title>
-
-<!-- PDF.js & SheetJS via CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
-
 :root {
-  --navy:    #0F2044;
-  --navy2:   #1B3060;
-  --teal:    #0F7490;
-  --teal2:   #0EA5C9;
-  --teal-l:  #E0F5FB;
-  --green:   #0D7A45;
-  --green-l: #E6F7EE;
-  --red:     #B91C1C;
-  --red-l:   #FEF2F2;
-  --amber:   #B45309;
-  --amber-l: #FEF3C7;
-  --white:   #FFFFFF;
-  --bg:      #F8FAFD;
-  --border:  #E2E8F3;
-  --text:    #1E293B;
-  --muted:   #64748B;
-  --mono:    'JetBrains Mono', monospace;
-  --sans:    'Plus Jakarta Sans', sans-serif;
-  --radius:  14px;
-  --shadow:  0 4px 24px rgba(15,32,68,.08);
-  --shadow2: 0 8px 40px rgba(15,32,68,.14);
+  --navy:#0F2044;--navy2:#1B3060;--teal:#0F7490;--teal2:#0EA5C9;--teal-l:#E0F5FB;
+  --green:#0D7A45;--green-l:#E6F7EE;--red:#B91C1C;--red-l:#FEF2F2;
+  --amber:#B45309;--amber-l:#FEF3C7;--white:#FFFFFF;--bg:#F8FAFD;
+  --border:#E2E8F3;--text:#1E293B;--muted:#64748B;
+  --mono:'JetBrains Mono',monospace;--sans:'Plus Jakarta Sans',sans-serif;
+  --radius:14px;--shadow:0 4px 24px rgba(15,32,68,.08);--shadow2:0 8px 40px rgba(15,32,68,.14);
 }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;}
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
-body {
-  font-family: var(--sans);
-  background: var(--bg);
-  color: var(--text);
-  -webkit-font-smoothing: antialiased;
-}
+header{background:var(--white);border-bottom:1px solid var(--border);position:fixed;top:0;left:0;right:0;z-index:100;height:56px;}
+.header-inner{max-width:1100px;margin:0 auto;padding:0 24px;height:100%;display:flex;align-items:center;justify-content:space-between;}
+.logo{display:flex;align-items:center;gap:9px;text-decoration:none;}
+.logo-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--teal) 0%,var(--navy) 100%);display:grid;place-items:center;font-size:16px;box-shadow:0 2px 8px rgba(15,116,144,.3);}
+.logo-name{font-size:17px;font-weight:800;color:var(--navy);}
+.logo-name span{color:var(--teal2);}
+.header-tag{font-size:10px;font-family:var(--mono);color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:4px 12px;border-radius:20px;letter-spacing:.5px;}
 
-/* ════════════════════════ HEADER ════════════════════════ */
-header {
-  background: var(--white);
-  border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 100;
-  backdrop-filter: blur(12px);
-}
-.header-inner {
-  max-width: 1160px; margin: 0 auto;
-  padding: 0 24px; height: 60px;
-  display: flex; align-items: center; justify-content: space-between;
-}
-.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-.logo-mark {
-  width: 34px; height: 34px; border-radius: 9px;
-  background: linear-gradient(135deg, var(--teal) 0%, var(--navy) 100%);
-  display: grid; place-items: center;
-  font-size: 17px; box-shadow: 0 2px 8px rgba(15,116,144,.35);
-}
-.logo-name {
-  font-size: 18px; font-weight: 800; color: var(--navy);
-  letter-spacing: -.3px;
-}
-.logo-name span { color: var(--teal2); }
-.logo-tag {
-  font-size: 9px; font-family: var(--mono); color: var(--muted);
-  background: var(--bg); border: 1px solid var(--border);
-  padding: 2px 8px; border-radius: 20px; letter-spacing: .5px;
-}
-nav a {
-  font-size: 13px; font-weight: 600; color: var(--muted);
-  text-decoration: none; padding: 6px 12px; border-radius: 8px;
-  transition: all .15s;
-}
-nav a:hover { color: var(--navy); background: var(--bg); }
-nav .btn-nav {
-  background: var(--navy); color: var(--white) !important;
-  padding: 7px 16px !important; border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(15,32,68,.2);
-}
-nav .btn-nav:hover { background: var(--navy2) !important; }
+.hero{height:calc(100vh - 56px);margin-top:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 24px;text-align:center;position:relative;}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:var(--teal-l);color:var(--teal);border:1px solid #B0E4F5;font-size:10px;font-weight:700;font-family:var(--mono);letter-spacing:1px;padding:4px 14px;border-radius:20px;margin-bottom:14px;text-transform:uppercase;}
+.hero h1{font-size:clamp(26px,4vw,44px);font-weight:800;color:var(--navy);line-height:1.1;letter-spacing:-.5px;margin-bottom:10px;}
+.hero h1 em{font-style:normal;background:linear-gradient(135deg,var(--teal) 0%,var(--teal2) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hero p{font-size:13px;color:var(--muted);max-width:480px;margin:0 auto 20px;line-height:1.6;}
 
-/* ════════════════════════ HERO ════════════════════════ */
-.hero {
-  max-width: 1160px; margin: 0 auto;
-  padding: 72px 24px 40px;
-  text-align: center;
-}
-.hero-badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: var(--teal-l); color: var(--teal);
-  border: 1px solid #B0E4F5;
-  font-size: 11px; font-weight: 700; font-family: var(--mono);
-  letter-spacing: .5px; padding: 5px 14px; border-radius: 20px;
-  margin-bottom: 20px; text-transform: uppercase;
-}
-.hero h1 {
-  font-size: clamp(32px, 5vw, 52px);
-  font-weight: 800; color: var(--navy);
-  line-height: 1.1; letter-spacing: -.5px;
-  margin-bottom: 16px;
-}
-.hero h1 em {
-  font-style: normal;
-  background: linear-gradient(135deg, var(--teal) 0%, var(--teal2) 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-}
-.hero p {
-  font-size: 16px; color: var(--muted); max-width: 560px;
-  margin: 0 auto 40px; line-height: 1.6;
-}
+.steps{display:flex;align-items:center;justify-content:center;margin-bottom:18px;}
+.step{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--muted);padding:3px 10px;}
+.step.active{color:var(--teal);}.step.done{color:var(--green);}
+.step-num{width:21px;height:21px;border-radius:50%;border:2px solid currentColor;display:grid;place-items:center;font-size:9px;font-family:var(--mono);font-weight:700;flex-shrink:0;}
+.step.active .step-num{background:var(--teal);border-color:var(--teal);color:white;}
+.step.done .step-num{background:var(--green);border-color:var(--green);color:white;}
+.step-sep{width:28px;height:1px;background:var(--border);}
 
-/* ════════════════════════ STEPS ════════════════════════ */
-.steps {
-  display: flex; align-items: center; justify-content: center;
-  gap: 0; margin-bottom: 48px; flex-wrap: wrap;
-}
-.step {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 12px; font-weight: 600; color: var(--muted);
-  padding: 6px 14px;
-}
-.step.active { color: var(--teal); }
-.step.done   { color: var(--green); }
-.step-num {
-  width: 24px; height: 24px; border-radius: 50%;
-  border: 2px solid currentColor;
-  display: grid; place-items: center;
-  font-size: 10px; font-family: var(--mono); font-weight: 700;
-  flex-shrink: 0;
-}
-.step.active .step-num { background: var(--teal); border-color: var(--teal); color: white; }
-.step.done   .step-num { background: var(--green); border-color: var(--green); color: white; }
-.step-sep { width: 40px; height: 1px; background: var(--border); }
+.upload-card{width:100%;max-width:560px;background:var(--white);border:2px dashed var(--border);border-radius:20px;padding:32px 28px;cursor:pointer;transition:all .2s;position:relative;box-shadow:var(--shadow);}
+.upload-card:hover,.upload-card.drag-over{border-color:var(--teal2);background:var(--teal-l);transform:translateY(-3px);box-shadow:var(--shadow2);}
+.upload-card input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;}
+.upload-icon{width:56px;height:56px;margin:0 auto 12px;background:linear-gradient(135deg,var(--teal-l),#C5EDF8);border-radius:50%;display:grid;place-items:center;font-size:24px;border:2px solid #B0E4F5;transition:transform .3s;}
+.upload-card:hover .upload-icon{transform:scale(1.08) rotate(-4deg);}
+.upload-card h2{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:4px;}
+.upload-card p{font-size:12px;color:var(--muted);}
+.upload-formats{display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap;}
+.fmt-tag{font-size:9px;font-family:var(--mono);font-weight:600;padding:3px 9px;border-radius:6px;border:1px solid var(--border);color:var(--muted);background:var(--bg);}
+.fmt-tag.hi{background:var(--teal-l);border-color:#B0E4F5;color:var(--teal);}
 
-/* ════════════════════════ UPLOAD ZONE ════════════════════════ */
-.upload-card {
-  max-width: 680px; margin: 0 auto;
-  background: var(--white);
-  border: 2px dashed var(--border);
-  border-radius: 20px;
-  padding: 56px 40px;
-  text-align: center;
-  cursor: pointer;
-  transition: all .2s;
-  position: relative;
-  box-shadow: var(--shadow);
-}
-.upload-card:hover, .upload-card.drag-over {
-  border-color: var(--teal2);
-  background: var(--teal-l);
-  transform: translateY(-3px);
-  box-shadow: var(--shadow2);
-}
-.upload-card input[type=file] {
-  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
-}
-.upload-icon {
-  width: 72px; height: 72px; margin: 0 auto 20px;
-  background: linear-gradient(135deg, var(--teal-l), #C5EDF8);
-  border-radius: 50%; display: grid; place-items: center;
-  font-size: 30px; border: 2px solid #B0E4F5;
-  transition: transform .3s;
-}
-.upload-card:hover .upload-icon { transform: scale(1.08) rotate(-4deg); }
-.upload-card h2 { font-size: 18px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
-.upload-card p  { font-size: 13px; color: var(--muted); }
-.upload-formats {
-  display: flex; gap: 8px; justify-content: center; margin-top: 20px;
-  flex-wrap: wrap;
-}
-.fmt-tag {
-  font-size: 10px; font-family: var(--mono); font-weight: 600;
-  padding: 4px 10px; border-radius: 6px;
-  border: 1px solid var(--border); color: var(--muted);
-  background: var(--bg);
-}
-.fmt-tag.active {
-  background: var(--teal-l); border-color: #B0E4F5; color: var(--teal);
-}
+.scroll-hint{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;gap:4px;color:var(--muted);font-size:10px;font-family:var(--mono);animation:bounce 2s infinite;pointer-events:none;}
+@keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(5px);}}
 
-/* ════════════════════════ LOADING ════════════════════════ */
-#loading {
-  display: none;
-  max-width: 680px; margin: 0 auto;
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 56px 40px;
-  text-align: center;
-  box-shadow: var(--shadow);
-}
-.spinner-wrap { position: relative; width: 64px; height: 64px; margin: 0 auto 24px; }
-.spinner-ring {
-  position: absolute; inset: 0;
-  border: 3px solid var(--border);
-  border-top-color: var(--teal2);
-  border-radius: 50%;
-  animation: spin .9s linear infinite;
-}
-.spinner-ring:nth-child(2) {
-  inset: 8px;
-  border-top-color: var(--navy);
-  animation-duration: .6s;
-  animation-direction: reverse;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-#loading h3 { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
-#loading p  { font-size: 12px; color: var(--muted); font-family: var(--mono); }
-.progress-bar-wrap {
-  height: 4px; background: var(--border); border-radius: 2px;
-  margin-top: 24px; overflow: hidden;
-}
-.progress-bar {
-  height: 100%; border-radius: 2px;
-  background: linear-gradient(90deg, var(--teal), var(--teal2));
-  animation: progAnim 2s ease-in-out infinite;
-}
-@keyframes progAnim {
-  0%   { width: 0%;   margin-left: 0; }
-  50%  { width: 70%;  margin-left: 15%; }
-  100% { width: 0%;   margin-left: 100%; }
-}
+#loading{display:none;width:100%;max-width:560px;background:var(--white);border:1px solid var(--border);border-radius:20px;padding:44px 36px;text-align:center;box-shadow:var(--shadow);}
+.spinner-wrap{position:relative;width:52px;height:52px;margin:0 auto 18px;}
+.spinner-ring{position:absolute;inset:0;border:3px solid var(--border);border-top-color:var(--teal2);border-radius:50%;animation:spin .9s linear infinite;}
+.spinner-ring:nth-child(2){inset:8px;border-top-color:var(--navy);animation-duration:.6s;animation-direction:reverse;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#loading h3{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:4px;}
+#loading p{font-size:11px;color:var(--muted);font-family:var(--mono);}
+.prog-wrap{height:4px;background:var(--border);border-radius:2px;margin-top:18px;overflow:hidden;}
+.prog-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--teal),var(--teal2));animation:progAnim 2s ease-in-out infinite;}
+@keyframes progAnim{0%{width:0%;margin-left:0;}50%{width:70%;margin-left:15%;}100%{width:0%;margin-left:100%;}}
 
-/* ════════════════════════ RESULTS ════════════════════════ */
-#results { display: none; max-width: 1160px; margin: 0 auto; }
+.btn-reset{display:none;margin:16px auto 0;background:none;border:1px solid var(--border);color:var(--muted);font-family:var(--sans);font-size:12px;padding:7px 16px;border-radius:8px;cursor:pointer;transition:all .15s;}
+.btn-reset:hover{border-color:var(--teal);color:var(--teal);}
 
-/* ── KPI CARDS ── */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px; margin-bottom: 24px;
-  animation: fadeUp .4s both;
-}
-@media(max-width:760px){ .kpi-grid { grid-template-columns: repeat(2,1fr); } }
-.kpi-card {
-  border-radius: var(--radius); padding: 22px 24px;
-  position: relative; overflow: hidden;
-  box-shadow: var(--shadow); cursor: default;
-  transition: transform .2s, box-shadow .2s;
-}
-.kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow2); }
-.kpi-card::before {
-  content: attr(data-icon);
-  position: absolute; right: 14px; top: 14px;
-  font-size: 28px; opacity: .18; transform: rotate(8deg);
-}
-.kpi-card:nth-child(1){ background: var(--navy); }
-.kpi-card:nth-child(2){ background: var(--green); }
-.kpi-card:nth-child(3){ background: var(--red); }
-.kpi-card:nth-child(4){ background: var(--teal); }
-.kpi-label { font-size: 9px; font-family: var(--mono); letter-spacing: 1.5px;
-              color: rgba(255,255,255,.55); text-transform: uppercase; margin-bottom: 10px; }
-.kpi-value { font-size: 40px; font-weight: 800; color: white; line-height: 1; }
-.kpi-sub   { font-size: 10px; color: rgba(255,255,255,.45); margin-top: 6px; font-family: var(--mono); }
+#results-section{display:none;max-width:1100px;margin:0 auto;padding:48px 24px 80px;animation:fadeUp .5s both;}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+@media(max-width:760px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+.kpi-card{border-radius:var(--radius);padding:20px 22px;position:relative;overflow:hidden;box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s;}
+.kpi-card:hover{transform:translateY(-2px);box-shadow:var(--shadow2);}
+.kpi-card::before{content:attr(data-icon);position:absolute;right:12px;top:12px;font-size:26px;opacity:.18;transform:rotate(8deg);}
+.kpi-card:nth-child(1){background:var(--navy);}
+.kpi-card:nth-child(2){background:var(--green);}
+.kpi-card:nth-child(3){background:var(--red);}
+.kpi-card:nth-child(4){background:var(--teal);}
+.kpi-label{font-size:8px;font-family:var(--mono);letter-spacing:1.5px;color:rgba(255,255,255,.5);text-transform:uppercase;margin-bottom:8px;}
+.kpi-value{font-size:36px;font-weight:800;color:white;line-height:1;}
+.kpi-sub{font-size:10px;color:rgba(255,255,255,.4);margin-top:5px;font-family:var(--mono);}
 
-/* ── DOWNLOAD BAR ── */
-.dl-bar {
-  background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
-  border-radius: var(--radius); padding: 20px 28px;
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 24px; box-shadow: var(--shadow2);
-  animation: fadeUp .4s .05s both;
-  flex-wrap: wrap; gap: 14px;
-}
-.dl-bar-info strong { font-size: 15px; color: white; display: block; margin-bottom: 3px; }
-.dl-bar-info span   { font-size: 11px; color: #7096B8; font-family: var(--mono); }
-.btn-dl {
-  background: linear-gradient(135deg, var(--teal2) 0%, var(--teal) 100%);
-  color: white; border: none; cursor: pointer;
-  font-family: var(--sans); font-weight: 700; font-size: 13px;
-  padding: 12px 28px; border-radius: 10px;
-  display: flex; align-items: center; gap: 8px;
-  transition: all .2s;
-  box-shadow: 0 4px 14px rgba(14,165,201,.4);
-  white-space: nowrap;
-}
-.btn-dl:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(14,165,201,.5); }
-.btn-dl:active { transform: translateY(0); }
-.btn-dl svg { flex-shrink: 0; }
+.dl-bar{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);border-radius:var(--radius);padding:18px 26px;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;box-shadow:var(--shadow2);flex-wrap:wrap;gap:12px;}
+.dl-bar-info strong{font-size:14px;color:white;display:block;margin-bottom:2px;}
+.dl-bar-info span{font-size:10px;color:#7096B8;font-family:var(--mono);}
+.btn-dl{background:linear-gradient(135deg,var(--teal2) 0%,var(--teal) 100%);color:white;border:none;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:13px;padding:11px 26px;border-radius:10px;display:flex;align-items:center;gap:7px;transition:all .2s;box-shadow:0 4px 14px rgba(14,165,201,.4);white-space:nowrap;}
+.btn-dl:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.btn-dl:disabled{opacity:.6;cursor:not-allowed;transform:none;}
 
-/* ── STATS GRID ── */
-.stats-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 16px; margin-bottom: 24px;
-  animation: fadeUp .4s .1s both;
-}
-@media(max-width:700px){ .stats-grid { grid-template-columns: 1fr; } }
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
+@media(max-width:700px){.stats-grid{grid-template-columns:1fr;}}
+.stat-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow);}
+.stat-card-hdr{padding:11px 18px;background:var(--navy);color:white;font-size:11px;font-weight:700;letter-spacing:.3px;display:flex;align-items:center;gap:6px;}
+.stat-row{display:grid;grid-template-columns:1fr 50px 50px 50px;padding:8px 16px;align-items:center;border-bottom:1px solid #F1F5FB;font-size:11px;}
+.stat-row:last-child{border:none;}.stat-row:nth-child(even){background:#FAFBFF;}
+.sn{font-weight:600;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sv{text-align:right;font-family:var(--mono);font-weight:600;}
+.sv-g{color:var(--green);}.sv-r{color:var(--red);}.sv-b{color:var(--navy);}
+.pbar-wrap{height:3px;background:#EEF2F8;border-radius:2px;margin:2px 16px 5px;}
+.pbar{height:100%;border-radius:2px;background:var(--teal2);transition:width .8s ease;}
 
-.stat-card {
-  background: var(--white); border-radius: var(--radius);
-  border: 1px solid var(--border); overflow: hidden;
-  box-shadow: var(--shadow);
-}
-.stat-card-hdr {
-  padding: 12px 20px;
-  background: var(--navy);
-  color: white; font-size: 11px; font-weight: 700;
-  letter-spacing: .3px; display: flex; align-items: center; gap: 7px;
-}
-.stat-row {
-  display: grid; grid-template-columns: 1fr 52px 52px 52px;
-  padding: 9px 18px; align-items: center;
-  border-bottom: 1px solid #F1F5FB; font-size: 11px;
-}
-.stat-row:last-child { border: none; }
-.stat-row:nth-child(even){ background: #FAFBFF; }
-.sn  { font-weight: 600; color: var(--navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sv  { text-align: right; font-family: var(--mono); font-weight: 600; }
-.sv-g{ color: var(--green); }
-.sv-r{ color: var(--red); }
-.sv-b{ color: var(--navy); }
-.pbar-wrap{ height: 4px; background: #EEF2F8; border-radius: 2px; margin: 3px 18px 6px; }
-.pbar    { height: 100%; border-radius: 2px; background: var(--teal2); transition: width .8s ease; }
+.preview-wrap{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow);}
+.preview-hdr{padding:12px 18px;background:var(--navy);display:flex;align-items:center;justify-content:space-between;}
+.preview-hdr h3{font-size:11px;font-weight:700;color:white;}
+.preview-cnt{font-size:9px;font-family:var(--mono);background:rgba(255,255,255,.12);color:rgba(255,255,255,.65);padding:3px 9px;border-radius:20px;}
+.table-scroll{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:11px;}
+thead th{padding:8px 12px;text-align:left;white-space:nowrap;background:#F8FAFD;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border);}
+tbody tr{border-bottom:1px solid #F1F5FB;transition:background .12s;}
+tbody tr:hover{background:var(--teal-l)!important;}
+tbody tr:nth-child(even){background:#FAFBFF;}
+tbody td{padding:7px 12px;white-space:nowrap;color:var(--text);}
+.td-num{font-family:var(--mono);color:var(--muted);font-size:10px;}
+.td-desc{max-width:240px;overflow:hidden;text-overflow:ellipsis;}
+.badge{font-size:9px;font-weight:700;font-family:var(--mono);padding:2px 7px;border-radius:20px;}
+.badge-ativo{background:var(--green-l);color:var(--green);}
+.badge-baixado{background:var(--red-l);color:var(--red);}
+.badge-marca{background:var(--teal-l);color:var(--teal);}
+.badge-end{background:var(--amber-l);color:var(--amber);}
+.tfoot-note{padding:9px 16px;background:var(--bg);border-top:1px solid var(--border);font-size:10px;color:var(--muted);font-family:var(--mono);}
 
-/* ── PREVIEW TABLE ── */
-.preview-wrap {
-  background: var(--white); border-radius: var(--radius);
-  border: 1px solid var(--border); overflow: hidden;
-  box-shadow: var(--shadow);
-  animation: fadeUp .4s .15s both;
-  margin-bottom: 48px;
-}
-.preview-hdr {
-  padding: 14px 20px; background: var(--navy);
-  display: flex; align-items: center; justify-content: space-between;
-}
-.preview-hdr h3 { font-size: 12px; font-weight: 700; color: white; }
-.preview-cnt {
-  font-size: 10px; font-family: var(--mono);
-  background: rgba(255,255,255,.12); color: rgba(255,255,255,.7);
-  padding: 3px 10px; border-radius: 20px;
-}
-.table-scroll { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-thead th {
-  padding: 9px 14px; text-align: left; white-space: nowrap;
-  background: #F8FAFD; color: var(--muted); font-weight: 700;
-  border-bottom: 1px solid var(--border); letter-spacing: .2px;
-}
-tbody tr { border-bottom: 1px solid #F1F5FB; transition: background .12s; }
-tbody tr:hover { background: var(--teal-l) !important; }
-tbody tr:nth-child(even){ background: #FAFBFF; }
-tbody td { padding: 8px 14px; white-space: nowrap; color: var(--text); }
-.td-num { font-family: var(--mono); color: var(--muted); font-size: 10px; }
-.td-desc { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
-.badge {
-  font-size: 9px; font-weight: 700; font-family: var(--mono);
-  padding: 2px 8px; border-radius: 20px; letter-spacing: .3px;
-}
-.badge-ativo    { background: var(--green-l); color: var(--green); }
-.badge-baixado  { background: var(--red-l);   color: var(--red); }
-.badge-marca    { background: var(--teal-l);  color: var(--teal); }
-.badge-end      { background: var(--amber-l); color: var(--amber); }
-.tfoot-note {
-  padding: 10px 18px; background: var(--bg);
-  border-top: 1px solid var(--border);
-  font-size: 10px; color: var(--muted); font-family: var(--mono);
-}
+.err-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--red);color:white;padding:11px 22px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 4px 20px rgba(185,28,28,.4);transition:transform .3s;z-index:999;white-space:nowrap;}
+.err-toast.show{transform:translateX(-50%) translateY(0);}
 
-/* ── FEATURES SECTION ── */
-.features {
-  max-width: 1160px; margin: 40px auto 80px;
-  padding: 0 24px;
-}
-.features-title {
-  text-align: center; font-size: 24px; font-weight: 800;
-  color: var(--navy); margin-bottom: 8px;
-}
-.features-sub {
-  text-align: center; color: var(--muted); font-size: 14px; margin-bottom: 40px;
-}
-.feat-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-@media(max-width:700px){ .feat-grid { grid-template-columns: 1fr; } }
-.feat-card {
-  background: var(--white); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 24px;
-  box-shadow: var(--shadow); transition: transform .2s, box-shadow .2s;
-}
-.feat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow2); }
-.feat-icon {
-  width: 44px; height: 44px; border-radius: 12px;
-  display: grid; place-items: center; font-size: 20px;
-  margin-bottom: 14px;
-}
-.fi-blue  { background: var(--teal-l); }
-.fi-green { background: var(--green-l); }
-.fi-amber { background: var(--amber-l); }
-.fi-navy  { background: #E8EDF8; }
-.fi-red   { background: var(--red-l); }
-.fi-pink  { background: #FDF2F8; }
-.feat-card h4 { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
-.feat-card p  { font-size: 12px; color: var(--muted); line-height: 1.5; }
-
-/* ── ERROR ── */
-.err-toast {
-  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
-  background: var(--red); color: white;
-  padding: 12px 24px; border-radius: 10px;
-  font-size: 13px; font-weight: 600;
-  box-shadow: 0 4px 20px rgba(185,28,28,.4);
-  transition: transform .3s; z-index: 999; white-space: nowrap;
-}
-.err-toast.show { transform: translateX(-50%) translateY(0); }
-
-/* ── FOOTER ── */
-footer {
-  background: var(--navy); color: rgba(255,255,255,.4);
-  text-align: center; padding: 24px;
-  font-size: 11px; font-family: var(--mono);
-  letter-spacing: .5px;
-}
-footer span { color: var(--teal2); }
-
-/* ── ANIMATIONS ── */
-@keyframes fadeUp {
-  from { opacity:0; transform:translateY(14px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-
-/* ── RESET NEW BUTTON ── */
-.btn-reset {
-  display: none;
-  margin: 16px auto 0;
-  background: none; border: 1px solid var(--border);
-  color: var(--muted); font-family: var(--sans);
-  font-size: 12px; padding: 7px 16px; border-radius: 8px;
-  cursor: pointer; transition: all .15s;
-}
-.btn-reset:hover { border-color: var(--teal); color: var(--teal); }
+footer{background:var(--navy);color:rgba(255,255,255,.35);text-align:center;padding:20px;font-size:10px;font-family:var(--mono);letter-spacing:.5px;}
+footer span{color:var(--teal2);}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
 </style>
 </head>
 <body>
 
-<!-- ══ HEADER ════════════════════════════════════════════════════════ -->
 <header>
   <div class="header-inner">
-    <a class="logo" href="#">
-      <div class="logo-mark">📋</div>
-      <div>
-        <div class="logo-name">Doc<span>Ativo</span></div>
-      </div>
-    </a>
-    <div style="display:flex;align-items:center;gap:8px">
-      <span class="logo-tag">SIGA / ATFA012</span>
-      <nav>
-        <a class="btn-nav" href="#upload-area">Converter PDF</a>
-      </nav>
-    </div>
+    <a class="logo" href="#"><div class="logo-mark">📋</div><div class="logo-name">Doc<span>Ativo</span></div></a>
+    <span class="header-tag">SIGA / ATFA012</span>
   </div>
 </header>
 
-<!-- ══ HERO ══════════════════════════════════════════════════════════ -->
-<div class="hero" id="upload-area">
+<div class="hero" id="heroSection">
   <div class="hero-badge">✦ 100% no navegador · sem instalação</div>
   <h1>Transforme relatórios <em>SIGA</em><br>em planilhas inteligentes</h1>
-  <p>Carregue o PDF exportado do ATFA012, visualize os dados na tela e baixe uma planilha Excel organizada com dashboard, filtros e análises.</p>
+  <p>Carregue o PDF exportado do ATFA012, visualize os dados e baixe uma planilha Excel com dashboard, filtros e análises.</p>
 
-  <!-- Steps -->
   <div class="steps" id="stepsBar">
     <div class="step active" id="step1"><div class="step-num">1</div> Carregar PDF</div>
     <div class="step-sep"></div>
@@ -475,101 +153,55 @@ footer span { color: var(--teal2); }
     <div class="step" id="step3"><div class="step-num">3</div> Baixar Excel</div>
   </div>
 
-  <!-- Upload zone -->
   <div class="upload-card" id="dropZone">
     <input type="file" id="fileInput" accept=".pdf">
     <div class="upload-icon">📂</div>
     <h2>Arraste o PDF aqui</h2>
     <p>ou clique para selecionar o arquivo</p>
     <div class="upload-formats">
-      <span class="fmt-tag active">PDF ATFA012</span>
+      <span class="fmt-tag hi">PDF ATFA012</span>
       <span class="fmt-tag">SIGA/ATFA012/v.12</span>
       <span class="fmt-tag">Sistema FIEPI</span>
     </div>
   </div>
 
-  <!-- Loading -->
   <div id="loading">
-    <div class="spinner-wrap">
-      <div class="spinner-ring"></div>
-      <div class="spinner-ring"></div>
-    </div>
+    <div class="spinner-wrap"><div class="spinner-ring"></div><div class="spinner-ring"></div></div>
     <h3>Processando o relatório…</h3>
     <p id="loadingMsg">lendo páginas do PDF</p>
-    <div class="progress-bar-wrap"><div class="progress-bar"></div></div>
+    <div class="prog-wrap"><div class="prog-bar"></div></div>
   </div>
 
   <button class="btn-reset" id="btnReset" onclick="resetAll()">↩ Converter outro arquivo</button>
+  <div class="scroll-hint" id="scrollHint">↓ role para ver os resultados</div>
 </div>
 
-<!-- ══ RESULTS ════════════════════════════════════════════════════════ -->
-<div id="results" style="padding:0 24px">
-
-  <!-- KPIs -->
+<div id="results-section">
   <div class="kpi-grid">
-    <div class="kpi-card" data-icon="📦">
-      <div class="kpi-label">Total de Bens</div>
-      <div class="kpi-value" id="kTotal">—</div>
-      <div class="kpi-sub" id="kFiliais">—</div>
-    </div>
-    <div class="kpi-card" data-icon="✅">
-      <div class="kpi-label">Ativos</div>
-      <div class="kpi-value" id="kAtivos">—</div>
-      <div class="kpi-sub" id="kPctAtivo">—</div>
-    </div>
-    <div class="kpi-card" data-icon="❌">
-      <div class="kpi-label">Baixados</div>
-      <div class="kpi-value" id="kBaixados">—</div>
-      <div class="kpi-sub" id="kPctBaixado">—</div>
-    </div>
-    <div class="kpi-card" data-icon="📈">
-      <div class="kpi-label">Taxa Ativo</div>
-      <div class="kpi-value" id="kPct">—</div>
-      <div class="kpi-sub">índice de atividade</div>
-    </div>
+    <div class="kpi-card" data-icon="📦"><div class="kpi-label">Total de Bens</div><div class="kpi-value" id="kTotal">—</div><div class="kpi-sub" id="kFiliais">—</div></div>
+    <div class="kpi-card" data-icon="✅"><div class="kpi-label">Ativos</div><div class="kpi-value" id="kAtivos">—</div><div class="kpi-sub" id="kPctAtivo">—</div></div>
+    <div class="kpi-card" data-icon="❌"><div class="kpi-label">Baixados</div><div class="kpi-value" id="kBaixados">—</div><div class="kpi-sub" id="kPctBaixado">—</div></div>
+    <div class="kpi-card" data-icon="📈"><div class="kpi-label">Taxa Ativo</div><div class="kpi-value" id="kPct">—</div><div class="kpi-sub">índice de atividade</div></div>
   </div>
-
-  <!-- Download bar -->
   <div class="dl-bar">
     <div class="dl-bar-info">
       <strong>✅ Planilha pronta para download!</strong>
       <span id="dlSubtitle">4 abas · Dashboard + Inventário + Ativos + Baixados</span>
     </div>
-    <button class="btn-dl" onclick="downloadExcel()">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
+    <button class="btn-dl" id="btnDl" onclick="downloadExcel()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Baixar .xlsx
     </button>
   </div>
-
-  <!-- Stats -->
   <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-card-hdr">🏢 Distribuição por Filial</div>
-      <div id="filialTable"></div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-hdr">🏷️ Equipamentos por Marca</div>
-      <div id="marcaTable"></div>
-    </div>
+    <div class="stat-card"><div class="stat-card-hdr">🏢 Distribuição por Filial</div><div id="filialTable"></div></div>
+    <div class="stat-card"><div class="stat-card-hdr">🏷️ Equipamentos por Marca</div><div id="marcaTable"></div></div>
   </div>
-
-  <!-- Preview table -->
   <div class="preview-wrap">
-    <div class="preview-hdr">
-      <h3>📄 Prévia dos Registros</h3>
-      <span class="preview-cnt" id="previewCount">—</span>
-    </div>
+    <div class="preview-hdr"><h3>📄 Prévia dos Registros</h3><span class="preview-cnt" id="previewCount">—</span></div>
     <div class="table-scroll">
       <table>
-        <thead>
-          <tr>
-            <th>#</th><th>Filial</th><th>Descrição</th><th>Marca</th>
-            <th>Cód. Bem</th><th>Endereço</th><th>Dt. Aquisição</th>
-            <th>Dt. Baixa</th><th>Status</th>
-          </tr>
-        </thead>
+        <thead><tr><th>#</th><th>Filial</th><th>Descrição</th><th>Marca</th><th>Cód. Bem</th><th>Endereço</th><th>Dt. Aquisição</th><th>Dt. Baixa</th><th>Status</th></tr></thead>
         <tbody id="previewBody"></tbody>
       </table>
     </div>
@@ -577,385 +209,411 @@ footer span { color: var(--teal2); }
   </div>
 </div>
 
-<!-- ══ FEATURES ══════════════════════════════════════════════════════ -->
-<div class="features" id="features">
-  <h2 class="features-title">Tudo que você precisa</h2>
-  <p class="features-sub">Desenvolvido especificamente para os relatórios SIGA/ATFA012 do Sistema FIEPI.</p>
-  <div class="feat-grid">
-    <div class="feat-card">
-      <div class="feat-icon fi-blue">🔒</div>
-      <h4>100% no seu navegador</h4>
-      <p>Nenhum dado é enviado para servidores. O processamento acontece direto na sua máquina.</p>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon fi-green">📊</div>
-      <h4>Dashboard automático</h4>
-      <p>Planilha com 4 abas: Dashboard visual, Inventário completo, Ativos e Baixados.</p>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon fi-amber">⚡</div>
-      <h4>Sem instalação</h4>
-      <p>Funciona em qualquer computador com navegador. Sem Python, sem dependências.</p>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon fi-navy">🔍</div>
-      <h4>Prévia antes de baixar</h4>
-      <p>Veja os dados extraídos, cards de resumo e tabela antes de gerar o arquivo Excel.</p>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon fi-red">🏷️</div>
-      <h4>Detecção automática</h4>
-      <p>Identifica marca, BTUs, status (Ativo/Baixado) e agrupa por filial e endereço.</p>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon fi-pink">🔄</div>
-      <h4>Sempre atualizado</h4>
-      <p>Acesse pelo GitHub Pages. Qualquer melhoria fica disponível automaticamente.</p>
-    </div>
-  </div>
-</div>
-
-<!-- ══ FOOTER ══════════════════════════════════════════════════════ -->
-<footer>
-  <span>DocAtivo</span> · SIGA/ATFA012 Extractor · Sistema FIEPI / SESI DR/PI
-  · Feito com 💙 · <span>100% Open Source</span>
-</footer>
-
-<!-- ══ ERROR TOAST ═══════════════════════════════════════════════ -->
+<footer><span>DocAtivo</span> · SIGA/ATFA012 Extractor · Sistema FIEPI / SESI DR/PI · Feito com 💙 · <span>Open Source</span></footer>
 <div class="err-toast" id="errToast"></div>
 
-<!-- ══════════════════════════════════════════════════════════════
-     JAVASCRIPT
-═══════════════════════════════════════════════════════════════ -->
 <script>
-// ─── PDF.js worker ────────────────────────────────────────────
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-// ─── GLOBALS ──────────────────────────────────────────────────
-let _records = [];
-let _xlsxBlob = null;
-let _filename  = 'docativo_patrimonio.xlsx';
+let _records=[], _xlsxBuffer=null, _filename='docativo.xlsx';
+const MARCAS=["CARRIER","SPRINGER","MIDEA","KOMECO","ELGIN","CONSUL","ELECTROLUX","ELETROLUX","GREE","AGRATTO","SILVERMAX","PHILCO","PHILCON","PILCO","ADMIRA"];
 
-const MARCAS = ["CARRIER","SPRINGER","MIDEA","KOMECO","ELGIN","CONSUL",
-                "ELECTROLUX","ELETROLUX","GREE","AGRATTO","SILVERMAX",
-                "PHILCO","PHILCON","PILCO","ADMIRA"];
+// ── Drag & drop ────────────────────────────────────────────────────────────
+const dropZone=document.getElementById('dropZone'), fileInput=document.getElementById('fileInput');
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f)handleFile(f);});
+fileInput.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
 
-// ─── DRAG & DROP ──────────────────────────────────────────────
-const dropZone  = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-
-dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault(); dropZone.classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (f) handleFile(f);
-});
-fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
-
-// ─── HANDLE FILE ──────────────────────────────────────────────
+// ── Handle file ────────────────────────────────────────────────────────────
 async function handleFile(file) {
-  if (!file.name.toLowerCase().endsWith('.pdf')) {
-    showError('Por favor envie um arquivo .pdf'); return;
-  }
-  setStep(2);
-  dropZone.style.display = 'none';
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('results').style.display = 'none';
-
+  if(!file.name.toLowerCase().endsWith('.pdf')){showError('Envie um arquivo .pdf');return;}
+  setStep(2); dropZone.style.display='none'; document.getElementById('loading').style.display='block';
   try {
     setMsg('lendo páginas do PDF…');
-    const buf     = await file.arrayBuffer();
-    const lines   = await extractPDFLines(buf);
+    const buf=await file.arrayBuffer(), lines=await extractPDFLines(buf);
     setMsg('identificando registros…');
-    _records = parseRecords(lines);
-    if (!_records.length) throw new Error('Nenhum registro encontrado.');
-    setMsg('gerando arquivo Excel…');
-    _xlsxBlob = buildExcel(_records, file.name);
-    _filename  = file.name.replace('.pdf', '_DocAtivo.xlsx');
-    setMsg('pronto!');
+    _records=parseRecords(lines);
+    if(!_records.length) throw new Error('Nenhum registro encontrado. Verifique se o PDF é do SIGA/ATFA012.');
+    setMsg('gerando Excel com formatação…');
+    _xlsxBuffer = await buildExcel(_records, file.name);
+    _filename=file.name.replace('.pdf','_DocAtivo.xlsx');
     await sleep(300);
-    document.getElementById('loading').style.display = 'none';
-    setStep(3);
-    renderResults(_records, file.name);
-    document.getElementById('results').style.display = 'block';
-    document.getElementById('btnReset').style.display = 'block';
-    document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' });
+    document.getElementById('loading').style.display='none';
+    setStep(3); renderResults(_records);
+    document.getElementById('scrollHint').style.display='flex';
+    document.getElementById('btnReset').style.display='block';
+    document.getElementById('results-section').style.display='block';
+    setTimeout(()=>document.getElementById('results-section').scrollIntoView({behavior:'smooth',block:'start'}),200);
   } catch(err) {
-    document.getElementById('loading').style.display = 'none';
-    dropZone.style.display = 'block';
-    setStep(1);
-    showError('Erro: ' + err.message);
+    document.getElementById('loading').style.display='none';
+    dropZone.style.display='block'; setStep(1);
+    showError('Erro: '+err.message);
   }
 }
 
-function setMsg(t){ document.getElementById('loadingMsg').textContent = t; }
-function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
-
 function resetAll(){
-  _records = []; _xlsxBlob = null;
-  dropZone.style.display = 'block';
-  document.getElementById('results').style.display = 'none';
-  document.getElementById('btnReset').style.display = 'none';
-  fileInput.value = '';
-  setStep(1);
-  document.getElementById('upload-area').scrollIntoView({ behavior:'smooth' });
+  _records=[];_xlsxBuffer=null;
+  dropZone.style.display='block';
+  document.getElementById('results-section').style.display='none';
+  document.getElementById('scrollHint').style.display='none';
+  document.getElementById('btnReset').style.display='none';
+  fileInput.value=''; setStep(1);
+  window.scrollTo({top:0,behavior:'smooth'});
 }
+function setStep(n){[1,2,3].forEach(i=>{const s=document.getElementById('step'+i);s.className='step'+(i<n?' done':i===n?' active':'');s.querySelector('.step-num').textContent=i<n?'✓':i;});}
+function setMsg(t){document.getElementById('loadingMsg').textContent=t;}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 
-function setStep(n){
-  [1,2,3].forEach(i => {
-    const s = document.getElementById('step'+i);
-    s.className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
-    s.querySelector('.step-num').textContent = i < n ? '✓' : i;
-  });
-}
-
-// ─── PDF TEXT EXTRACTION ──────────────────────────────────────
+// ── PDF extraction ─────────────────────────────────────────────────────────
 async function extractPDFLines(arrayBuffer) {
-  const pdf   = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const lines = [];
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page    = await pdf.getPage(p);
-    const content = await page.getTextContent();
-    const items   = content.items.filter(it => it.str.trim());
-
-    // Group by rounded Y position
-    const yMap = new Map();
-    for (const it of items) {
-      const y = Math.round(it.transform[5] * 2) / 2; // 0.5pt precision
-      if (!yMap.has(y)) yMap.set(y, []);
-      yMap.get(y).push({ text: it.str, x: it.transform[4] });
-    }
-
-    // Sort top→bottom (y descending), items left→right
-    const sorted = [...yMap.entries()]
-      .sort((a, b) => b[0] - a[0])
-      .map(([, items]) => {
-        items.sort((a,b) => a.x - b.x);
-        return items.map(i => i.text).join(' ').replace(/\s+/g, ' ').trim();
-      })
-      .filter(l => l.length > 1);
-
+  const pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise, lines=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p),content=await page.getTextContent();
+    const items=content.items.filter(it=>it.str.trim()),yMap=new Map();
+    for(const it of items){const y=Math.round(it.transform[5]*2)/2;if(!yMap.has(y))yMap.set(y,[]);yMap.get(y).push({text:it.str,x:it.transform[4]});}
+    const sorted=[...yMap.entries()].sort((a,b)=>b[0]-a[0]).map(([,items])=>{items.sort((a,b)=>a.x-b.x);return items.map(i=>i.text).join(' ').replace(/\s+/g,' ').trim();}).filter(l=>l.length>1);
     lines.push(...sorted);
   }
   return lines;
 }
 
-// ─── PARSE RECORDS ────────────────────────────────────────────
-function parseRecords(lines) {
-  const records = [];
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const fm = line.match(/^Filial:(.*?)\s+Descr\.\s*Sint\.:\s*(.*)$/);
-    if (!fm) continue;
-
-    const filialRaw  = fm[1].trim();
-    const descricao  = fm[2].trim();
-    const fc = filialRaw.match(/^(\w+)-(.*)/);
-    const filialCod  = fc ? fc[1] : filialRaw;
-    const filialNome = fc ? fc[2].trim() : filialRaw;
-
-    let grupo='', codBem='', endereco='', dtAq='', dtBaixa='', item='';
-
-    for (let j = i+1; j < Math.min(i+7, lines.length); j++) {
-      const l = lines[j];
-      const g  = l.match(/Grupo:(\S+)/);
-      const cb = l.match(/Cod\.\s*do\s*Bem:(\S+)/);
-      const en = l.match(/Endereco:(\S+)/);
-      const da = l.match(/Dt\.Aquisicao:(\S+)/);
-      const db = l.match(/Dt\.de Baixa:(\S+)/);
-      const it = l.match(/Item:(\S+)/);
-      if (g)  grupo    = g[1];
-      if (cb) codBem   = cb[1];
-      if (en) endereco = en[1];
-      if (da) dtAq     = da[1];
-      if (db) { const v=db[1]; dtBaixa = (v==='/'||v===''||v.startsWith('/ ')) ? '' : v; }
-      if (it) item = it[1];
+// ── Parse records ──────────────────────────────────────────────────────────
+function parseRecords(lines){
+  const records=[];
+  for(let i=0;i<lines.length;i++){
+    const fm=lines[i].match(/^Filial:(.*?)\s+Descr\.\s*Sint\.:(.*)$/);
+    if(!fm) continue;
+    const filialRaw=fm[1].trim(),descricao=fm[2].trim();
+    const fc=filialRaw.match(/^(\w+)-(.*)/);
+    const filialCod=fc?fc[1]:filialRaw,filialNome=fc?fc[2].trim():filialRaw;
+    let grupo='',codBem='',endereco='',dtAq='',dtBaixa='',item='';
+    for(let j=i+1;j<Math.min(i+7,lines.length);j++){
+      const l=lines[j];
+      const g=l.match(/Grupo:(\S+)/),cb=l.match(/Cod\.\s*do\s*Bem:(\S+)/),en=l.match(/Endereco:(\S+)/),da=l.match(/Dt\.Aquisicao:(\S+)/),db=l.match(/Dt\.de Baixa:(\S+)/),it=l.match(/Item:(\S+)/);
+      if(g)grupo=g[1];if(cb)codBem=cb[1];if(en)endereco=en[1];if(da)dtAq=da[1];
+      if(db){const v=db[1];dtBaixa=(v==='/'||v===''||v.startsWith('/ '))?'':v;}
+      if(it)item=it[1];
     }
-
-    const marca = MARCAS.find(m => descricao.toUpperCase().includes(m)) || 'OUTROS';
-    const bm    = descricao.match(/(\d[\d.]+)\s*[BK]TU/i);
-    const btus  = bm ? bm[0].toUpperCase() : '';
-    const status = dtBaixa ? 'Baixado' : 'Ativo';
-
-    records.push({ filialCod, filialNome, descricao, marca, btus,
-                   grupo, codBem, endereco, dtAq, dtBaixa, item, status });
+    const marca=MARCAS.find(m=>descricao.toUpperCase().includes(m))||'OUTROS';
+    const bm=descricao.match(/(\d[\d.]+)\s*[BK]TU/i),btus=bm?bm[0].toUpperCase():'';
+    records.push({filialCod,filialNome,descricao,marca,btus,grupo,codBem,endereco,dtAq,dtBaixa,item,status:dtBaixa?'Baixado':'Ativo'});
   }
   return records;
 }
 
-// ─── BUILD STATS ──────────────────────────────────────────────
-function computeStats(records) {
-  const total    = records.length;
-  const ativos   = records.filter(r => r.status==='Ativo').length;
-  const baixados = total - ativos;
-  const pct      = total ? +(ativos/total*100).toFixed(1) : 0;
-
-  const byFilial = {}, byMarca = {};
-  for (const r of records) {
-    const f = r.filialNome;
-    if (!byFilial[f]) byFilial[f] = { total:0, ativo:0, baixado:0 };
-    byFilial[f].total++;
-    byFilial[f][r.status==='Ativo'?'ativo':'baixado']++;
-    byMarca[r.marca] = (byMarca[r.marca]||0)+1;
+// ── Stats ──────────────────────────────────────────────────────────────────
+function computeStats(records){
+  const total=records.length,ativos=records.filter(r=>r.status==='Ativo').length,baixados=total-ativos,pct=total?+(ativos/total*100).toFixed(1):0;
+  const byFilial={},byMarca={};
+  for(const r of records){
+    const f=r.filialNome;if(!byFilial[f])byFilial[f]={total:0,ativo:0,baixado:0};
+    byFilial[f].total++;byFilial[f][r.status==='Ativo'?'ativo':'baixado']++;
+    byMarca[r.marca]=(byMarca[r.marca]||0)+1;
   }
-
-  const sortedFilial = Object.entries(byFilial).sort((a,b)=>b[1].total-a[1].total);
-  const sortedMarca  = Object.entries(byMarca).sort((a,b)=>b[1]-a[1]).slice(0,8);
-
-  return { total, ativos, baixados, pct,
-           filiais: sortedFilial.length,
-           byFilial: sortedFilial,
-           byMarca: sortedMarca };
+  return{total,ativos,baixados,pct,filiais:Object.keys(byFilial).length,
+    byFilial:Object.entries(byFilial).sort((a,b)=>b[1].total-a[1].total),
+    byMarca:Object.entries(byMarca).sort((a,b)=>b[1]-a[1]).slice(0,10)};
 }
 
-// ─── RENDER RESULTS ───────────────────────────────────────────
-function renderResults(records, fname) {
-  const s = computeStats(records);
+// ══════════════════════════════════════════════════════════════════════════
+//  BUILD EXCEL — ExcelJS com formatação completa (igual ao Python)
+// ══════════════════════════════════════════════════════════════════════════
+async function buildExcel(records, srcName) {
 
-  // KPIs
-  document.getElementById('kTotal').textContent    = s.total;
-  document.getElementById('kFiliais').textContent  = `${s.filiais} filiais`;
-  document.getElementById('kAtivos').textContent   = s.ativos;
-  document.getElementById('kPctAtivo').textContent = `${s.pct}% do total`;
-  document.getElementById('kBaixados').textContent = s.baixados;
-  document.getElementById('kPctBaixado').textContent = `${(100-s.pct).toFixed(1)}% do total`;
-  document.getElementById('kPct').textContent      = `${s.pct}%`;
-  document.getElementById('dlSubtitle').textContent =
-    `${s.total} registros · ${s.ativos} ativos · ${s.baixados} baixados · ${s.filiais} filiais`;
+  // ── Paleta de cores ──────────────────────────────────────────────────────
+  const C = {
+    navy:     '1B2A4A', navy2:    '2C4270',
+    teal:     '1D6A8A', teal2:    '0EA5C9',
+    green:    '1E7C45', greenL:   'E8F5EE',
+    red:      'B81C2E', redL:     'FFF0F0',
+    white:    'FFFFFF', grayL:    'F5F7FA',
+    alt:      'F0F4FA', border:   'D0D7E2',
+    grayText: '4A4A4A',
+  };
 
-  // Filial table
-  let fHtml = '';
-  for (const [nome, d] of s.byFilial) {
-    const pct = d.total ? Math.round(d.ativo/d.total*100) : 0;
-    fHtml += `<div class="stat-row">
-      <div class="sn">${nome.substring(0,24)}</div>
-      <div class="sv sv-b">${d.total}</div>
-      <div class="sv sv-g">${d.ativo}</div>
-      <div class="sv sv-r">${d.baixado}</div>
-    </div>
-    <div class="pbar-wrap"><div class="pbar" style="width:${pct}%"></div></div>`;
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  const fill    = argb => ({ type:'pattern', pattern:'solid', fgColor:{argb} });
+  const font    = (opts={}) => ({ name:'Calibri', size:9, color:{argb:opts.color||C.grayText}, bold:!!opts.bold, italic:!!opts.italic, ...opts });
+  const align   = (h='left',v='middle',wrap=false) => ({ horizontal:h, vertical:v, wrapText:wrap });
+  const brd     = (argb=C.border) => { const s={style:'thin',color:{argb}}; return {top:s,left:s,bottom:s,right:s}; };
+  const brdMed  = (argb=C.navy)   => { const s={style:'medium',color:{argb}}; return {top:s,left:s,bottom:s,right:s}; };
+
+  function styleCell(cell, opts={}) {
+    if(opts.bg)       cell.fill      = fill(opts.bg);
+    if(opts.font)     cell.font      = opts.font;
+    if(opts.align)    cell.alignment = opts.align;
+    if(opts.border)   cell.border    = opts.border;
   }
-  document.getElementById('filialTable').innerHTML = fHtml;
 
-  // Marca table
-  const mTotal = s.byMarca.reduce((a,[,v])=>a+v,0);
-  let mHtml = '';
-  for (const [marca, qtd] of s.byMarca) {
-    const pct = mTotal ? Math.round(qtd/mTotal*100) : 0;
-    mHtml += `<div class="stat-row">
-      <div class="sn">${marca}</div>
-      <div class="sv sv-b" style="grid-column:2/5">${qtd} <small style="color:var(--muted)">(${pct}%)</small></div>
-    </div>
-    <div class="pbar-wrap"><div class="pbar" style="width:${pct}%;background:var(--teal)"></div></div>`;
+  function styleRow(row, cols, opts={}) {
+    row.eachCell({includeEmpty:true}, (cell,ci) => {
+      if(ci > cols) return;
+      if(opts.bg)     cell.fill      = fill(opts.bg);
+      if(opts.font)   cell.font      = opts.font;
+      if(opts.align)  cell.alignment = opts.align;
+      if(opts.border) cell.border    = opts.border;
+    });
+    if(opts.height) row.height = opts.height;
   }
-  document.getElementById('marcaTable').innerHTML = mHtml;
 
-  // Preview table
-  const preview = records.slice(0, 60);
-  let rows = '';
-  for (let i=0; i<preview.length; i++) {
-    const r  = preview[i];
-    const st = r.status==='Ativo'
-      ? '<span class="badge badge-ativo">ATIVO</span>'
-      : '<span class="badge badge-baixado">BAIXADO</span>';
-    const mk = r.marca!=='OUTROS'
-      ? `<span class="badge badge-marca">${r.marca}</span>` : `<span style="color:var(--muted)">${r.marca}</span>`;
-    const dt = r.dtBaixa ? `<span style="color:var(--red)">${r.dtBaixa}</span>` : '<span style="color:var(--muted)">—</span>';
-    rows += `<tr>
-      <td class="td-num">${i+1}</td>
-      <td><span class="badge badge-end">${r.filialCod}</span></td>
-      <td class="td-desc" title="${r.descricao}">${r.descricao}</td>
-      <td>${mk}</td>
-      <td class="td-num">${r.codBem}</td>
-      <td class="td-num">${r.endereco}</td>
-      <td class="td-num">${r.dtAq}</td>
-      <td class="td-num">${dt}</td>
-      <td>${st}</td>
-    </tr>`;
-  }
-  document.getElementById('previewBody').innerHTML = rows;
-  document.getElementById('previewCount').textContent =
-    preview.length < records.length
-      ? `Mostrando ${preview.length} de ${records.length}`
-      : `${records.length} registros`;
-  document.getElementById('tableNote').textContent =
-    `Exibindo ${preview.length} de ${records.length} registros · Baixe o Excel para ver todos com filtros e dashboard completo`;
-}
-
-// ─── BUILD EXCEL (SheetJS) ────────────────────────────────────
-function buildExcel(records, srcName) {
-  const wb   = XLSX.utils.book_new();
+  const wb   = new ExcelJS.Workbook();
   const now  = new Date().toLocaleString('pt-BR');
+  const stat = computeStats(records);
 
-  // ── Sheet: Dashboard resumo ──
-  const stats   = computeStats(records);
-  const dashData = [
-    ['DocAtivo — Inventário de Patrimônio FIEPI/SESI', '', '', ''],
-    [`Fonte: ${srcName}`, '', `Gerado: ${now}`, ''],
-    ['', '', '', ''],
-    ['RESUMO GERAL', '', '', ''],
-    ['Total de Bens', stats.total, '', ''],
-    ['Ativos',        stats.ativos, '', ''],
-    ['Baixados',      stats.baixados, '', ''],
-    ['Taxa Ativo (%)', stats.pct, '', ''],
-    ['', '', '', ''],
-    ['POR FILIAL', 'Total', 'Ativos', 'Baixados'],
-    ...stats.byFilial.map(([n,d]) => [n, d.total, d.ativo, d.baixado]),
-    ['', '', '', ''],
-    ['POR MARCA', 'Quantidade', '', ''],
-    ...stats.byMarca.map(([m,q]) => [m, q, '', '']),
+  // ══════════════════════════════════════════════════════════════════════
+  //  ABA 1 — RESUMO (Dashboard)
+  // ══════════════════════════════════════════════════════════════════════
+  const ws1 = wb.addWorksheet('📊 Resumo', { properties:{ tabColor:{argb:C.navy} } });
+  ws1.views = [{ showGridLines:false }];
+  ws1.columns = [
+    {width:2},{width:16},{width:16},{width:16},{width:16},{width:16},{width:16},{width:16},{width:2}
   ];
-  const wsDash = XLSX.utils.aoa_to_sheet(dashData);
-  wsDash['!cols'] = [{wch:36},{wch:14},{wch:14},{wch:14}];
-  XLSX.utils.book_append_sheet(wb, wsDash, '📊 Dashboard');
 
-  // ── Helper: records → sheet ──
-  const HDRS = ['Filial (Cód)','Filial (Nome)','Descrição','Marca','BTUs',
-                'Grupo','Cód. Bem','Endereço','Dt. Aquisição','Dt. Baixa','Item','Status'];
-  function makeSheet(recs) {
-    const rows = recs.map(r => [
-      r.filialCod, r.filialNome, r.descricao, r.marca, r.btus,
-      r.grupo, r.codBem, r.endereco, r.dtAq, r.dtBaixa, r.item, r.status
-    ]);
-    const ws = XLSX.utils.aoa_to_sheet([HDRS, ...rows]);
-    ws['!cols'] = [10,26,50,12,12,7,14,12,13,13,6,10].map(w => ({wch:w}));
-    ws['!autofilter'] = { ref: `A1:L${rows.length+1}` };
-    return ws;
+  // Banner header (linhas 1-5)
+  for(let r=1;r<=5;r++){
+    const row = ws1.getRow(r);
+    row.height = r===1||r===5 ? 6 : 20;
+    for(let c=1;c<=9;c++) ws1.getCell(r,c).fill = fill(C.navy);
+  }
+  ws1.mergeCells('B2:H2');
+  const bannerCell = ws1.getCell('B2');
+  bannerCell.value = 'SISTEMA FIEPI  ·  SESI DR/PI  —  Inventário de Patrimônio';
+  bannerCell.font  = font({size:13, bold:true, color:C.white});
+  bannerCell.alignment = align('center');
+  bannerCell.fill  = fill(C.navy);
+
+  ws1.mergeCells('B3:H3');
+  const subCell = ws1.getCell('B3');
+  subCell.value = `Condicionadores de Ar  |  Fonte: ${srcName}  |  Gerado: ${now}`;
+  subCell.font  = font({size:8, italic:true, color:'7096B8'});
+  subCell.alignment = align('center');
+  subCell.fill  = fill(C.navy);
+
+  // KPI cards (linhas 7-10)
+  ws1.getRow(6).height = 10;
+  const kpis = [
+    {col:2, label:'TOTAL DE BENS', value:stat.total,    bg:C.navy2},
+    {col:4, label:'ATIVOS',        value:stat.ativos,   bg:C.green},
+    {col:6, label:'BAIXADOS',      value:stat.baixados, bg:C.red},
+    {col:8, label:'TAXA ATIVO',    value:stat.pct+'%',  bg:C.teal},
+  ];
+
+  [7,8,9,10].forEach((r,i) => ws1.getRow(r).height = [6,24,28,6][i]);
+
+  for(const kpi of kpis) {
+    // preenche cada linha separadamente (sem merge multi-row)
+    for(let r=7;r<=10;r++){
+      for(let c=kpi.col;c<=kpi.col+1;c++){
+        ws1.getCell(r,c).fill = fill(kpi.bg);
+      }
+      ws1.mergeCells(r, kpi.col, r, kpi.col+1);
+    }
+    // Label
+    const labelCell = ws1.getCell(8, kpi.col);
+    labelCell.value     = kpi.label;
+    labelCell.font      = font({size:8, bold:true, color:'CCE0F0'});
+    labelCell.alignment = align('center');
+    labelCell.fill      = fill(kpi.bg);
+    // Value
+    const valCell = ws1.getCell(9, kpi.col);
+    valCell.value     = kpi.value;
+    valCell.font      = font({size:22, bold:true, color:C.white});
+    valCell.alignment = align('center');
+    valCell.fill      = fill(kpi.bg);
   }
 
-  XLSX.utils.book_append_sheet(wb, makeSheet(records),
-    '📋 Inventário Completo');
-  XLSX.utils.book_append_sheet(wb, makeSheet(records.filter(r=>r.status==='Ativo')),
-    '✅ Ativos');
-  XLSX.utils.book_append_sheet(wb, makeSheet(records.filter(r=>r.status==='Baixado')),
-    '❌ Baixados');
+  // ── Tabela por Filial ────────────────────────────────────────────────
+  let r = 12;
+  ws1.getRow(11).height = 10;
+  ws1.mergeCells(`B${r}:H${r}`);
+  const secFilial = ws1.getCell(`B${r}`);
+  secFilial.value = '  DISTRIBUIÇÃO POR FILIAL';
+  secFilial.fill  = fill(C.teal);
+  secFilial.font  = font({size:10, bold:true, color:C.white});
+  secFilial.alignment = align('left');
+  ws1.getRow(r).height = 22;
 
-  return XLSX.write(wb, { bookType:'xlsx', type:'array' });
+  r++;
+  const fHdrs = ['Filial','','Total','Ativos','Baixados','% Ativo',''];
+  fHdrs.forEach((h,i) => {
+    const cell = ws1.getCell(r, i+2);
+    cell.value = h; cell.fill = fill(C.navy);
+    cell.font  = font({size:8, bold:true, color:C.white});
+    cell.alignment = align('center'); cell.border = brd(C.navy);
+  });
+  ws1.getRow(r).height = 18;
+
+  stat.byFilial.forEach(([nome,d],idx) => {
+    r++;
+    const bg = idx%2===0 ? C.grayL : C.white;
+    const pct = d.total ? Math.round(d.ativo/d.total*100) : 0;
+    const bar = '█'.repeat(Math.floor(pct/10)) + '░'.repeat(10-Math.floor(pct/10));
+    const rowVals = [nome.substring(0,28),'',d.total,d.ativo,d.baixado,`${pct}%  ${bar}`,''];
+    rowVals.forEach((v,i) => {
+      const cell = ws1.getCell(r, i+2);
+      cell.value = v; cell.fill = fill(bg);
+      cell.font  = font({size:8});
+      cell.alignment = align(i>1?'center':'left');
+      cell.border = brd();
+    });
+    ws1.getRow(r).height = 16;
+  });
+
+  // ── Tabela por Marca ─────────────────────────────────────────────────
+  r += 2;
+  ws1.mergeCells(`B${r}:H${r}`);
+  const secMarca = ws1.getCell(`B${r}`);
+  secMarca.value = '  RANKING DE MARCAS';
+  secMarca.fill  = fill(C.navy2);
+  secMarca.font  = font({size:10, bold:true, color:C.white});
+  secMarca.alignment = align('left');
+  ws1.getRow(r).height = 22;
+
+  r++;
+  ['Marca','','Qtd.','','% do Total','',''].forEach((h,i) => {
+    const cell = ws1.getCell(r, i+2);
+    cell.value=h; cell.fill=fill(C.navy);
+    cell.font=font({size:8,bold:true,color:C.white});
+    cell.alignment=align('center'); cell.border=brd(C.navy);
+  });
+  ws1.getRow(r).height = 18;
+
+  const mTotal = stat.byMarca.reduce((a,[,v])=>a+v,0);
+  stat.byMarca.forEach(([marca,qtd],idx) => {
+    r++;
+    const bg = idx%2===0 ? C.grayL : C.white;
+    const pct = mTotal ? Math.round(qtd/mTotal*100) : 0;
+    const bar = '█'.repeat(Math.floor(pct/5)) + '░'.repeat(20-Math.floor(pct/5));
+    [marca,'',qtd,'',`${pct}%  ${bar}`,'',''].forEach((v,i) => {
+      const cell = ws1.getCell(r, i+2);
+      cell.value=v; cell.fill=fill(bg);
+      cell.font=font({size:8});
+      cell.alignment=align(i>1?'center':'left'); cell.border=brd();
+    });
+    ws1.getRow(r).height = 16;
+  });
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  FUNÇÃO para criar abas de dados (Inventário, Ativos, Baixados)
+  // ══════════════════════════════════════════════════════════════════════
+  const HDRS = ['Filial (Cód)','Filial (Nome)','Descrição do Bem','Marca','BTUs','Grupo','Código do Bem','Endereço','Dt. Aquisição','Dt. Baixa','Item','Status'];
+  const WIDTHS = [14,28,52,12,14,8,16,12,14,14,7,11];
+  const KEYS   = ['filialCod','filialNome','descricao','marca','btus','grupo','codBem','endereco','dtAq','dtBaixa','item','status'];
+
+  async function makeDataSheet(name, tabArgb, hdrArgb, recs) {
+    const ws = wb.addWorksheet(name, { properties:{ tabColor:{argb:tabArgb} } });
+    ws.views = [{ showGridLines:false, state:'frozen', ySplit:2 }];
+    ws.columns = WIDTHS.map(w => ({width:w}));
+
+    // Título banner
+    ws.mergeCells(`A1:${String.fromCharCode(64+HDRS.length)}1`);
+    const title = ws.getCell('A1');
+    title.value = `  ${name}  —  ${now}`;
+    title.fill  = fill(hdrArgb);
+    title.font  = font({size:12, bold:true, color:C.white});
+    title.alignment = align('left','middle');
+    ws.getRow(1).height = 26;
+
+    // Header row
+    HDRS.forEach((h,i) => {
+      const cell = ws.getCell(2, i+1);
+      cell.value = h; cell.fill = fill(hdrArgb);
+      cell.font  = font({size:9, bold:true, color:C.white});
+      cell.alignment = align('center','middle'); cell.border = brd(hdrArgb);
+    });
+    ws.getRow(2).height = 22;
+
+    // Data rows
+    recs.forEach((rec,ri) => {
+      const isBaixado = rec.status === 'Baixado';
+      const rowBg = isBaixado
+        ? (ri%2===0 ? 'FFE8E8' : C.redL)
+        : (ri%2===0 ? C.alt    : C.white);
+
+      const row = ws.addRow(KEYS.map(k => rec[k]));
+      row.height = 16;
+
+      row.eachCell({includeEmpty:true}, (cell, ci) => {
+        if(ci > HDRS.length) return;
+        const key = KEYS[ci-1];
+        cell.fill   = fill(rowBg);
+        cell.border = brd();
+        cell.alignment = align(['grupo','codBem','item','status','btus'].includes(key)?'center':'left','middle');
+
+        let fc = C.grayText;
+        let bold = false;
+        if(key==='status'){ fc=rec.status==='Ativo'?C.green:C.red; bold=true; }
+        else if(key==='marca') fc=C.teal;
+        else if(key==='filialCod') fc=C.navy;
+        cell.font = font({size:8, color:fc, bold});
+      });
+    });
+
+    // Auto-filter
+    ws.autoFilter = { from:{row:2,column:1}, to:{row:recs.length+2,column:HDRS.length} };
+
+    // Footer
+    const footRow = ws.addRow([`Total nesta aba: ${recs.length} registros`]);
+    footRow.getCell(1).font      = font({size:8, italic:true, color:'9E9E9E'});
+    footRow.getCell(1).fill      = fill(C.grayL);
+    footRow.getCell(1).border    = brd();
+    ws.mergeCells(recs.length+3, 1, recs.length+3, 4);
+  }
+
+  await makeDataSheet('📋 Inventário Completo', C.navy,  C.navy,  records);
+  await makeDataSheet('✅ Ativos',              C.green, C.green, records.filter(r=>r.status==='Ativo'));
+  await makeDataSheet('❌ Baixados',            C.red,   C.red,   records.filter(r=>r.status==='Baixado'));
+
+  return await wb.xlsx.writeBuffer();
 }
 
-// ─── DOWNLOAD ─────────────────────────────────────────────────
+// ── Download ───────────────────────────────────────────────────────────────
 function downloadExcel() {
-  if (!_xlsxBlob) return;
-  const blob = new Blob([_xlsxBlob],
-    { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const a   = document.createElement('a');
-  a.href = url; a.download = _filename;
+  if(!_xlsxBuffer) return;
+  const blob = new Blob([_xlsxBuffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=_filename;
   document.body.appendChild(a); a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-// ─── ERROR TOAST ──────────────────────────────────────────────
-function showError(msg) {
-  const t = document.getElementById('errToast');
-  t.textContent = '⚠ ' + msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 4500);
+// ── Render web preview ─────────────────────────────────────────────────────
+function renderResults(records){
+  const s=computeStats(records);
+  document.getElementById('kTotal').textContent=s.total;
+  document.getElementById('kFiliais').textContent=`${s.filiais} filiais`;
+  document.getElementById('kAtivos').textContent=s.ativos;
+  document.getElementById('kPctAtivo').textContent=`${s.pct}% do total`;
+  document.getElementById('kBaixados').textContent=s.baixados;
+  document.getElementById('kPctBaixado').textContent=`${(100-s.pct).toFixed(1)}% do total`;
+  document.getElementById('kPct').textContent=`${s.pct}%`;
+  document.getElementById('dlSubtitle').textContent=`${s.total} registros · ${s.ativos} ativos · ${s.baixados} baixados · ${s.filiais} filiais`;
+
+  let fHtml='';
+  for(const[nome,d]of s.byFilial){const pct=d.total?Math.round(d.ativo/d.total*100):0;fHtml+=`<div class="stat-row"><div class="sn">${nome.substring(0,24)}</div><div class="sv sv-b">${d.total}</div><div class="sv sv-g">${d.ativo}</div><div class="sv sv-r">${d.baixado}</div></div><div class="pbar-wrap"><div class="pbar" style="width:${pct}%"></div></div>`;}
+  document.getElementById('filialTable').innerHTML=fHtml;
+
+  const mTotal=s.byMarca.reduce((a,[,v])=>a+v,0);
+  let mHtml='';
+  for(const[marca,qtd]of s.byMarca){const pct=mTotal?Math.round(qtd/mTotal*100):0;mHtml+=`<div class="stat-row"><div class="sn">${marca}</div><div class="sv sv-b" style="grid-column:2/5">${qtd} <small style="color:var(--muted)">(${pct}%)</small></div></div><div class="pbar-wrap"><div class="pbar" style="width:${pct}%;background:var(--teal)"></div></div>`;}
+  document.getElementById('marcaTable').innerHTML=mHtml;
+
+  const preview=records.slice(0,60); let rows='';
+  for(let i=0;i<preview.length;i++){
+    const r=preview[i];
+    const st=r.status==='Ativo'?'<span class="badge badge-ativo">ATIVO</span>':'<span class="badge badge-baixado">BAIXADO</span>';
+    const mk=r.marca!=='OUTROS'?`<span class="badge badge-marca">${r.marca}</span>`:`<span style="color:var(--muted)">${r.marca}</span>`;
+    const dt=r.dtBaixa?`<span style="color:var(--red)">${r.dtBaixa}</span>`:'<span style="color:var(--muted)">—</span>';
+    rows+=`<tr><td class="td-num">${i+1}</td><td><span class="badge badge-end">${r.filialCod}</span></td><td class="td-desc" title="${r.descricao}">${r.descricao}</td><td>${mk}</td><td class="td-num">${r.codBem}</td><td class="td-num">${r.endereco}</td><td class="td-num">${r.dtAq}</td><td class="td-num">${dt}</td><td>${st}</td></tr>`;
+  }
+  document.getElementById('previewBody').innerHTML=rows;
+  document.getElementById('previewCount').textContent=preview.length<records.length?`${preview.length} de ${records.length}`:`${records.length} registros`;
+  document.getElementById('tableNote').textContent=`Mostrando ${preview.length} de ${records.length} registros · Baixe o Excel para ver todos com filtros`;
 }
+
+// ── Error toast ────────────────────────────────────────────────────────────
+function showError(msg){const t=document.getElementById('errToast');t.textContent='⚠ '+msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),5000);}
 </script>
 </body>
 </html>
