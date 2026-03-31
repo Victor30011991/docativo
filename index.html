@@ -647,7 +647,12 @@ const Parser = (() => {
     const buf = await file.arrayBuffer();
     const wb  = new ExcelJS.Workbook();
     await wb.xlsx.load(buf);
-    const ws = wb.worksheets[0];
+    // Prefere aba com dados de inventario em vez da aba Dashboard
+    const ws = wb.worksheets.find(s => {
+      const name = s.name.toLowerCase();
+      return name.includes('inventario') || name.includes('completo') ||
+             name.includes('ativo') || name.includes('dados');
+    }) || wb.worksheets[0];
     if (!ws) throw new Error('Arquivo Excel sem planilhas.');
 
     // Detecta linha de cabeçalho
@@ -666,6 +671,8 @@ const Parser = (() => {
           if (!ci) return; // ExcelJS usa indice 1-based
           // Filial: captura tanto "Filial" quanto "Filial (Cod)" quanto "Filial (Nome)"
           if (v.includes('filial') && !v.includes('nome') && !colMap.filial) colMap.filial = ci;
+          // Coluna "Filial (Nome)" separada — arquivos DocAtivo legados
+          if (v.includes('filial') && v.includes('nome') && !colMap.filialNome) colMap.filialNome = ci;
           // Codigo do Bem: "codigo do bem", "cod. bem", "cod. do bem"
           if ((v.includes('cod') && v.includes('bem')) ||
               (v.includes('codigo') && !v.includes('filial')))   colMap.codBem = ci;
@@ -691,8 +698,18 @@ const Parser = (() => {
     ws.eachRow({ includeEmpty: false }, (row, ri) => {
       if (ri <= hdrRow) return;
       const g = (k) => colMap[k] != null ? Normalizer.cleanStr(String(row.values[colMap[k]] ?? '')) : '';
+
+      // Suporte a filial em coluna unica "02PI0001-SESI DR/Pl"
+      // OU em duas colunas separadas "Filial (Cod)" + "Filial (Nome)"
       const filialRaw = g('filial');
+      const filialNomeCol = (() => {
+        if (!colMap.filialNome) return '';
+        return Normalizer.cleanStr(String(row.values[colMap.filialNome] ?? ''));
+      })();
       const m = filialRaw.match(/^(\w+)-(.*)/);
+      // Se filial ja tem o formato completo, usa como esta
+      // Se nao, e tiver coluna de nome separada, constroi o par
+      const filialCodFinal = m ? m[1] : filialRaw;
       // Se o arquivo tem coluna Status explícita, usa ela para confirmar Baixado
       const statusExplicito = colMap.status ? Normalizer.cleanStr(String(row.values[colMap.status] ?? '')) : '';
       const dtBxVal = g('dtBx');
@@ -700,7 +717,7 @@ const Parser = (() => {
       const dtBaixaFinal = Normalizer.isDate(dtBxVal) ? dtBxVal :
         (statusExplicito.toLowerCase().includes('baixad') ? '31/12/9999' : '');
       records.push(Enricher.buildRecord({
-        filialCod: m ? m[1] : filialRaw,
+        filialCod: filialCodFinal,
         descricao: g('desc'),
         grupo: g('grupo'),
         codBem: g('codBem'),
@@ -711,7 +728,14 @@ const Parser = (() => {
       }, file.name));
     });
 
-    return records.filter(r => r.codBem);
+    // Aceita registros com descricao mesmo sem codBem (arquivos legados com dados parciais)
+    return records
+      .filter(r => r.codBem || r.descricao)
+      .map((r, i) => ({
+        ...r,
+        // Gera ID sintetico se codBem ausente, para nao perder o registro
+        codBem: r.codBem || `[ID-${String(i+1).padStart(4,'0')}]`,
+      }));
   };
 
   // ── Parser CSV ──────────────────────────────────────────────────────────
