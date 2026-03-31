@@ -865,224 +865,236 @@ const Analytics = (() => {
 // ═══════════════════════════════════════════════════════════════════════════
 const ExcelBuilder = (() => {
 
-  // ── Helpers de estilo (factory functions, evitam duplicação) ───────────
-  const fill   = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
-  const font   = ({ size=9, bold=false, italic=false, color=CONFIG.XL.sl9 } = {}) =>
-    ({ name: 'Calibri', size, bold, italic, color: { argb: color } });
-  const align  = (h='left', v='middle', wrap=false) =>
-    ({ horizontal: h, vertical: v, wrapText: wrap });
-  const border = (argb=CONFIG.XL.border) => {
-    const s = { style: 'thin', color: { argb } };
-    return { top: s, left: s, bottom: s, right: s };
+  const X = CONFIG.XL;
+  const fill   = a => ({ type:'pattern', pattern:'solid', fgColor:{argb:a} });
+  const font   = ({s=9,b=false,i=false,c=X.sl9}={}) =>
+    ({ name:'Calibri', size:s, bold:b, italic:i, color:{argb:c} });
+  const align  = (h='left', v='middle', w=false) =>
+    ({ horizontal:h, vertical:v, wrapText:w });
+  const bd     = (a=X.border) => { const s={style:'thin',color:{argb:a}}; return {top:s,left:s,bottom:s,right:s}; };
+  const bdMed  = (a=X.sl9)    => { const s={style:'medium',color:{argb:a}};return {top:s,left:s,bottom:s,right:s}; };
+
+  const hCell = (cell, v, bg, {s=9,fc=X.white,ah='center',italic=false}={}) => {
+    cell.value=v; cell.fill=fill(bg);
+    cell.font=font({s,b:true,i:italic,c:fc});
+    cell.alignment=align(ah,'middle'); cell.border=bd(bg);
+  };
+  const dCell = (cell, v, bg, {c=X.sl9,b=false,ah='left',wrap=false}={}) => {
+    cell.value=v; cell.fill=fill(bg);
+    cell.font=font({c,b,s:8}); cell.alignment=align(ah,'middle',wrap); cell.border=bd();
   };
 
-  const applyHeader = (cell, value, bgArgb, { fontSize=9, halign='center' } = {}) => {
-    cell.value     = value;
-    cell.fill      = fill(bgArgb);
-    cell.font      = font({ size: fontSize, bold: true, color: CONFIG.XL.white });
-    cell.alignment = align(halign, 'middle');
-    cell.border    = border(bgArgb);
+  // ── Mini barra horizontal usando blocos Unicode ─────────────────────────
+  const miniBar = (v, max, len=20) => {
+    const filled = max > 0 ? Math.round((v/max)*len) : 0;
+    return '█'.repeat(filled) + '░'.repeat(len - filled);
   };
 
-  const applyData = (cell, value, bgArgb, { color=CONFIG.XL.sl9, bold=false, halign='left' } = {}) => {
-    cell.value     = value;
-    cell.fill      = fill(bgArgb);
-    cell.font      = font({ size: 8, bold, color });
-    cell.alignment = align(halign, 'middle');
-    cell.border    = border();
-  };
-
-  // ── Adiciona tabela de resumo na aba Dashboard ─────────────────────────
-  const addSummaryTable = (ws, startRow, title, hdrColor, headers, rows) => {
-    ws.getRow(startRow - 1).height = 10;
-    ws.mergeCells(`B${startRow}:H${startRow}`);
-    const titleCell = ws.getCell(`B${startRow}`);
-    titleCell.value     = `  ${title}`;
-    titleCell.fill      = fill(hdrColor);
-    titleCell.font      = font({ size: 10, bold: true, color: CONFIG.XL.white });
-    titleCell.alignment = align('left');
-    ws.getRow(startRow).height = 22;
-
-    let r = startRow + 1;
-    headers.forEach((h, ci) => applyHeader(ws.getCell(r, ci + 2), h, CONFIG.XL.b500));
+  // ── Tabela de resumo no Dashboard ───────────────────────────────────────
+  const summaryTable = (ws, startR, title, titleBg, hdrs, rows) => {
+    ws.getRow(startR-1).height = 8;
+    ws.mergeCells(`B${startR}:H${startR}`);
+    const tc = ws.getCell(`B${startR}`);
+    tc.value=`  ${title}`; tc.fill=fill(titleBg);
+    tc.font=font({s:10,b:true,c:X.white}); tc.alignment=align('left');
+    ws.getRow(startR).height = 22;
+    let r = startR+1;
+    hdrs.forEach((h,i) => hCell(ws.getCell(r,i+2), h, X.b700));
     ws.getRow(r).height = 18;
-
+    const maxVal = rows.reduce((m,row) => {
+      const v = typeof row[2]==='number' ? row[2] : 0; return v > m ? v : m;
+    }, 0);
     rows.forEach((row, idx) => {
       r++;
-      const bg = idx % 2 === 0 ? CONFIG.XL.alt : CONFIG.XL.white;
-      row.forEach((v, ci) => {
-        const halign = typeof v === 'number' ? 'center' : 'left';
-        applyData(ws.getCell(r, ci + 2), v, bg, { halign });
+      const bg = idx%2===0 ? X.alt : X.white;
+      row.forEach((v,i) => {
+        const cell = ws.getCell(r,i+2);
+        const ah = (i>1 && i<row.length-1) ? 'center' : 'left';
+        dCell(cell, v, bg, {ah});
+        // Coluna de barra visual
+        if(i===row.length-2 && typeof row[2]==='number'){
+          const barCell = ws.getCell(r, row.length+2);
+          barCell.value = miniBar(row[2], maxVal, 15);
+          barCell.fill  = fill(bg);
+          barCell.font  = font({c:X.b500, s:7});
+          barCell.alignment = align('left','middle');
+          barCell.border = bd();
+        }
       });
-      ws.getRow(r).height = 15;
+      ws.getRow(r).height = 16;
     });
-    return r + 1;
+    return r+1;
   };
 
-  // ── Cria aba de dados ───────────────────────────────────────────────────
-  const makeDataSheet = (wb, name, tabColor, hdrColor, records, now) => {
-    const HEADERS = [
-      'Nº','Filial','Tipo','Marca','Capacidade','Inverter',
-      'Cód. do Bem','Endereço','Ano Aq.','Dt. Aquisição',
-      'Dt. Baixa','Tempo Uso','Status','⚠️ Alerta','Fonte','Descrição Completa',
-    ];
-    const WIDTHS  = [5,30,22,16,20,10,16,12,10,14,14,14,12,13,20,56];
-    const KEYS    = [
-      '_n','filialNome','tipo','marca','capacidadeLabel','inverter',
-      'codBem','endereco','anoAquisicao','dtAquisicao',
-      'dtBaixa','_tempo','status','_alerta','source','descricao',
-    ];
-    const CENTER_KEYS = new Set(['_n','codBem','anoAquisicao','inverter','_tempo','status','_alerta']);
+  // ── Aba de dados padronizada ─────────────────────────────────────────────
+  const HDRS   = ['Nº','Cód. do Bem','Filial','Tipo','Marca','Capacidade',
+                  'Inverter','Endereço','Dt. Aquisição','Dt. Baixa',
+                  'Ano Aq.','Tempo Uso','Status','⚠️','Fonte','Descrição'];
+  const WIDTHS = [5,16,28,22,16,18,10,13,14,14,10,14,11,10,18,55];
+  const KEYS   = ['codBem','filialNome','tipo','marca','capacidadeLabel',
+                  'inverter','endereco','dtAquisicao','dtBaixa',
+                  'anoAquisicao','_tempo','status','_alerta','source','descricao'];
+  const CENTER = new Set(['_n','codBem','anoAquisicao','inverter','_tempo','status','_alerta']);
 
-    const ws = wb.addWorksheet(name, { properties: { tabColor: { argb: tabColor } } });
-    ws.views = [{ showGridLines: false, state: 'frozen', ySplit: 2 }];
-    ws.columns = WIDTHS.map(w => ({ width: w }));
-
-    // Título banner
-    const lastCol = String.fromCharCode(64 + HEADERS.length);
-    ws.mergeCells(`A1:${lastCol}1`);
-    const tc = ws.getCell('A1');
-    tc.value     = `  ${name}  —  Gerado em ${now}`;
-    tc.fill      = fill(hdrColor);
-    tc.font      = font({ size: 12, bold: true, color: CONFIG.XL.white });
-    tc.alignment = align('left', 'middle');
-    ws.getRow(1).height = 24;
-
-    // Cabeçalhos de coluna
-    HEADERS.forEach((h, ci) => applyHeader(ws.getCell(2, ci + 1), h, hdrColor));
-    ws.getRow(2).height = 20;
-
-    // Dados
-    records.forEach((rec, ri) => {
-      const isBx = rec.status === 'Baixado';
-      const isAl = rec.alerta;
-      let bg = ri % 2 === 0 ? CONFIG.XL.alt : CONFIG.XL.white;
-      if (isBx)      bg = ri % 2 === 0 ? 'FFE8E8' : CONFIG.XL.r50;
-      else if (isAl) bg = ri % 2 === 0 ? 'FFF3CD' : CONFIG.XL.a50;
-
-      const vals = [
-        ri + 1,
-        rec.filialNome, rec.tipo, rec.marca, rec.capacidadeLabel,
-        rec.inverter ? 'Sim' : 'Não',
-        rec.codBem, rec.endereco, rec.anoAquisicao || '',
-        rec.dtAquisicao, rec.dtBaixa,
-        rec.tempoUso != null ? `${rec.tempoUso} anos` : '',
-        rec.status,
-        rec.alerta ? '⚠️ Revisar' : '',
-        rec.source, rec.descricao,
-      ];
-
-      vals.forEach((v, ci) => {
-        const key  = KEYS[ci];
-        const cell = ws.getCell(ri + 3, ci + 1);
-        let color  = CONFIG.XL.sl9, bold = false;
-
-        if (key === 'status')  { color = rec.status === 'Ativo' ? CONFIG.XL.g800 : CONFIG.XL.r800; bold = true; }
-        if (key === 'marca')    color = CONFIG.XL.b700;
-        if (key === 'tipo')     color = CONFIG.XL.p600;
-        if (key === '_alerta' && v) color = CONFIG.XL.a800;
-        if (key === 'inverter' && v === 'Sim') color = CONFIG.XL.g600;
-
-        applyData(cell, v, bg, {
-          color, bold,
-          halign: CENTER_KEYS.has(key) ? 'center' : 'left',
-        });
-      });
-      ws.getRow(ri + 3).height = 15;
-    });
-
-    // Filtro e rodapé
-    ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: records.length + 2, column: HEADERS.length } };
-    const footRow = records.length + 3;
-    ws.mergeCells(footRow, 1, footRow, 5);
-    const fc = ws.getCell(footRow, 1);
-    fc.value     = `Total: ${records.length} registros`;
-    fc.font      = font({ size: 8, italic: true, color: CONFIG.XL.sl5 });
-    fc.fill      = fill(CONFIG.XL.b50);
-    fc.border    = border();
-  };
-
-  // ── Ponto de entrada principal ─────────────────────────────────────────
-  const build = async (records, sources) => {
-    const wb   = new ExcelJS.Workbook();
-    const st   = Analytics.computeStats(records);
-    const now  = new Date().toLocaleString('pt-BR');
-    const X    = CONFIG.XL;
-
-    // ── ABA 1: Dashboard ─────────────────────────────────────────────────
-    const ws1 = wb.addWorksheet('📊 Dashboard', { properties: { tabColor: { argb: X.b700 } } });
-    ws1.views   = [{ showGridLines: false }];
-    ws1.columns = [1.5,16,16,13,13,13,13,16,1.5].map(w => ({ width: w }));
+  const makeDataSheet = (wb, name, tabC, hdrBg, recs, now) => {
+    const ws = wb.addWorksheet(name, {properties:{tabColor:{argb:tabC}}});
+    ws.views = [{showGridLines:false, state:'frozen', ySplit:2}];
+    ws.columns = WIDTHS.map(w => ({width:w}));
 
     // Banner
-    for (let r = 1; r <= 5; r++) {
-      ws1.getRow(r).height = r === 1 || r === 5 ? 5 : 20;
-      for (let c = 1; c <= 9; c++) ws1.getCell(r, c).fill = fill(X.b700);
-    }
-    ws1.mergeCells('B2:H2');
-    applyHeader(ws1.getCell('B2'),
-      'SISTEMA FIEPI  ·  SESI DR/PI  —  Inventário de Patrimônio', X.b700,
-      { fontSize: 13, halign: 'center' });
-    ws1.mergeCells('B3:H3');
-    applyHeader(ws1.getCell('B3'),
-      `Fontes: ${sources.join(', ')}  |  Gerado em: ${now}`, X.b700,
-      { fontSize: 8, halign: 'center' });
-    ws1.getCell('B3').font = font({ size: 8, italic: true, color: X.b200 });
+    const lastCol = String.fromCharCode(64+HDRS.length);
+    ws.mergeCells(`A1:${lastCol}1`);
+    const bc = ws.getCell('A1');
+    bc.value = `  ${name}  —  ${now}`;
+    bc.fill  = fill(hdrBg); bc.font = font({s:12,b:true,c:X.white});
+    bc.alignment = align('left','middle'); ws.getRow(1).height = 26;
 
-    // KPI cards
+    // Headers
+    HDRS.forEach((h,i) => hCell(ws.getCell(2,i+1), h, hdrBg));
+    ws.getRow(2).height = 20;
+
+    // Rows
+    recs.forEach((rec, ri) => {
+      const isBx = rec.status==='Baixado', isAl = rec.alerta;
+      let bg = ri%2===0 ? X.alt : X.white;
+      if(isBx)      bg = ri%2===0 ? 'FFE8E8' : X.r50;
+      else if(isAl) bg = ri%2===0 ? 'FFF3CD' : X.a50;
+
+      const row = ws.getRow(ri+3);
+      const vals = [ri+1, rec.codBem, rec.filialNome, rec.tipo, rec.marca,
+                    rec.capacidadeLabel, rec.inverter ? 'Sim':'Não',
+                    rec.endereco, rec.dtAquisicao, rec.dtBaixa,
+                    rec.anoAquisicao||'', rec.tempoUso!=null?`${rec.tempoUso} anos`:'',
+                    rec.status, rec.alerta?'⚠️':'', rec.source, rec.descricao];
+
+      vals.forEach((v,ci) => {
+        const key = ci===0?'_n':KEYS[ci-1];
+        const cell = ws.getCell(ri+3, ci+1);
+        let color=X.sl9, bold=false;
+        if(key==='status'){ color=rec.status==='Ativo'?X.g800:X.r800; bold=true; }
+        else if(key==='marca')   color=X.b700;
+        else if(key==='tipo')    color=X.p600;
+        else if(key==='_alerta'&&v) color=X.a800;
+        else if(key==='inverter'&&v==='Sim') color=X.g600;
+        dCell(cell, v, bg, {c:color, b:bold, ah:CENTER.has(key)?'center':'left'});
+      });
+      row.height = 15;
+
+      // Conditional formatting: Tempo Uso (col 12) com cor por idade
+      if(rec.tempoUso !== null) {
+        const tCell = ws.getCell(ri+3, 12);
+        let tColor = X.g800;
+        if(rec.tempoUso >= 15)      tColor = X.r800;
+        else if(rec.tempoUso >= 10) tColor = X.a800;
+        tCell.font = font({s:8, b:rec.tempoUso>=15, c:tColor});
+      }
+    });
+
+    ws.autoFilter = {from:{row:2,column:1}, to:{row:recs.length+2,column:HDRS.length}};
+    // Rodapé
+    const fr = recs.length+3;
+    ws.mergeCells(fr,1,fr,5);
+    const fc = ws.getCell(fr,1);
+    fc.value=`Total: ${recs.length} registros`; fc.fill=fill(X.b50);
+    fc.font=font({s:8,i:true,c:X.sl5}); fc.border=bd();
+  };
+
+  // ── Build principal ──────────────────────────────────────────────────────
+  const build = async (records, sources) => {
+    const wb  = new ExcelJS.Workbook();
+    const st  = Analytics.computeStats(records);
+    const now = new Date().toLocaleString('pt-BR');
+
+    // ════════════════════════════════════════════════════
+    //  ABA 1 — DASHBOARD
+    // ════════════════════════════════════════════════════
+    const ws1 = wb.addWorksheet('📊 Dashboard',{properties:{tabColor:{argb:X.b700}}});
+    ws1.views = [{showGridLines:false}];
+    // Col widths: A(pad) B-H(dados) I(barra) I(pad)
+    [1.5,14,14,12,12,12,12,14,22,1.5].forEach((w,i) =>
+      ws1.getColumn(i+1).width = w
+    );
+
+    // ── Banner institucional ──
+    for(let r=1; r<=5; r++){
+      ws1.getRow(r).height = r===1||r===5 ? 5 : r===3 ? 18 : 20;
+      for(let c=1; c<=10; c++) ws1.getCell(r,c).fill = fill(X.b700);
+    }
+    ws1.mergeCells('B2:I2');
+    hCell(ws1.getCell('B2'),
+      'SISTEMA FIEPI  ·  SESI PIAUÍ  —  Inventário de Patrimônio',
+      X.b700, {s:13, ah:'center'});
+    ws1.mergeCells('B3:I3');
+    const sc = ws1.getCell('B3');
+    sc.value=`Condicionadores de Ar  |  Fontes: ${sources.join(', ')}  |  ${now}`;
+    sc.fill=fill(X.b700); sc.font=font({s:8,i:true,c:X.b200});
+    sc.alignment=align('center');
+
+    // ── KPI Cards — linha 7-11 (5 cards) ──
     ws1.getRow(6).height = 10;
-    [7, 8, 9, 10].forEach((r, i) => ws1.getRow(r).height = [6, 20, 26, 6][i]);
+    [7,8,9,10,11].forEach((r,i) => ws1.getRow(r).height=[5,18,28,14,5][i]);
 
     const kpis = [
-      { col: 2, label: 'TOTAL FILTRADO', val: st.total,    bg: X.b700 },
-      { col: 3, label: 'ATIVOS',         val: st.ativos,   bg: X.g600 },
-      { col: 5, label: 'BAIXADOS',       val: st.baixados, bg: X.r600 },
-      { col: 6, label: 'TAXA ATIVO',     val: `${st.pct}%`, bg: '0EA5E9' },
-      { col: 8, label: 'ALERTAS +15A',   val: st.alertas,  bg: X.a600 },
+      {col:2, label:'TOTAL DE BENS', val:st.total,
+       sub:`${st.filiais} filial(is)`, bg:X.b700},
+      {col:3, label:'ATIVOS', val:st.ativos,
+       sub:`${st.pct}% do total`, bg:X.g600},
+      {col:5, label:'BAIXADOS', val:st.baixados,
+       sub:`${(100-st.pct).toFixed(1)}% do total`, bg:X.r600},
+      {col:6, label:'TAXA ATIVO', val:`${st.pct}%`,
+       sub:'índice de atividade', bg:'0EA5E9'},
+      {col:8, label:'ALERTAS +15 ANOS', val:st.alertas,
+       sub:'precisam de revisão', bg:X.a600},
     ];
-    for (const k of kpis) {
-      for (let r = 7; r <= 10; r++) {
-        ws1.getCell(r, k.col).fill = fill(k.bg);
-        ws1.mergeCells(r, k.col, r, k.col);
-      }
-      const lc = ws1.getCell(8, k.col);
-      lc.value = k.label; lc.fill = fill(k.bg);
-      lc.font  = font({ size: 8, bold: true, color: 'DBEAFE' });
-      lc.alignment = align('center');
 
-      const vc = ws1.getCell(9, k.col);
-      vc.value = k.val; vc.fill = fill(k.bg);
-      vc.font  = font({ size: 22, bold: true, color: X.white });
-      vc.alignment = align('center');
+    for(const k of kpis){
+      for(let r=7; r<=11; r++){
+        ws1.getCell(r,k.col).fill = fill(k.bg);
+        ws1.mergeCells(r,k.col,r,k.col);
+      }
+      // Label
+      const lc = ws1.getCell(8,k.col);
+      lc.value=k.label; lc.fill=fill(k.bg);
+      lc.font=font({s:7,b:true,c:'BFDBFE'});
+      lc.alignment=align('center');
+      // Valor
+      const vc = ws1.getCell(9,k.col);
+      vc.value=String(k.val); vc.fill=fill(k.bg);
+      vc.font=font({s:20,b:true,c:X.white});
+      vc.alignment=align('center');
+      // Sub
+      const subc = ws1.getCell(10,k.col);
+      subc.value=k.sub; subc.fill=fill(k.bg);
+      subc.font=font({s:7,c:'BFDBFE'}); subc.alignment=align('center');
     }
 
-    // Tabelas de resumo
-    let nextRow = 13;
-    nextRow = addSummaryTable(ws1, nextRow, 'DISTRIBUIÇÃO POR FILIAL', X.b700,
-      ['Filial', '', 'Total', 'Ativos', 'Baixados', '% Ativo', ''],
-      st.byFilial.map(([n, d]) => [
-        n.substring(0, 32), '',
-        d.total, d.ativo, d.baixado,
-        d.total ? `${Math.round(d.ativo / d.total * 100)}%` : '0%', '',
+    // ── Tabelas do dashboard ──
+    let nr=14;
+    nr = summaryTable(ws1, nr, 'DISTRIBUIÇÃO POR FILIAL', X.b700,
+      ['Filial','','Total','Ativos','Baixados','% Ativo',''],
+      st.byFilial.map(([n,d]) => [
+        n.substring(0,30),'',d.total,d.ativo,d.baixado,
+        d.total?`${Math.round(d.ativo/d.total*100)}%`:'0%','',
       ])
     );
-    nextRow = addSummaryTable(ws1, nextRow + 1, 'POR TIPO DE EQUIPAMENTO', X.p600,
-      ['Tipo', '', '', 'Qtd.', '', '', ''],
-      st.byTipo.map(([t, q]) => [t, '', '', q, '', '', ''])
+    nr = summaryTable(ws1, nr+1, 'POR TIPO DE EQUIPAMENTO', X.p600,
+      ['Tipo','','Qtd.','','','',''],
+      st.byTipo.map(([t,q]) => [t,'',q,'','','',''])
     );
-    nextRow = addSummaryTable(ws1, nextRow + 1, 'POR CAPACIDADE (BTUs)', X.a600,
-      ['Faixa', '', '', 'Qtd.', '', '', ''],
-      st.byCap.map(([c, q]) => [c, '', '', q, '', '', ''])
+    const col2 = nr;
+    nr = summaryTable(ws1, nr+1, 'POR CAPACIDADE (BTUs)', X.a600,
+      ['Faixa de Capacidade','','Qtd.','','','',''],
+      st.byCap.map(([c,q]) => [c,'',q,'','','',''])
     );
-    addSummaryTable(ws1, nextRow + 1, 'RANKING DE MARCAS', X.g600,
-      ['Marca', '', '', 'Qtd.', '', '', ''],
-      st.byMarca.map(([m, q]) => [m, '', '', q, '', '', ''])
+    summaryTable(ws1, nr+1, 'RANKING DE MARCAS', X.g600,
+      ['Marca','','Qtd.','','','',''],
+      st.byMarca.map(([m,q]) => [m,'',q,'','','',''])
     );
 
-    // Abas de dados
-    makeDataSheet(wb, '📋 Inventário Completo', X.sl9,  X.b700, records, now);
-    makeDataSheet(wb, '✅ Ativos',              X.g600, X.g600, records.filter(r => r.status === 'Ativo'), now);
-    makeDataSheet(wb, '❌ Baixados',            X.r600, X.r600, records.filter(r => r.status === 'Baixado'), now);
+    // ── Abas de dados ──
+    makeDataSheet(wb,'📋 Inventário Completo', X.sl9, X.b700, records, now);
+    makeDataSheet(wb,'✅ Ativos',              X.g600,X.g600, records.filter(r=>r.status==='Ativo'), now);
+    makeDataSheet(wb,'❌ Baixados',            X.r600,X.r600, records.filter(r=>r.status==='Baixado'), now);
 
     return wb.xlsx.writeBuffer();
   };
@@ -1091,168 +1103,402 @@ const ExcelBuilder = (() => {
 })();
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  [PDF-OUT] Geração de relatório PDF — jsPDF + AutoTable
+//  [PDF-OUT] Geração de relatório PDF profissional — jsPDF + AutoTable
 // ═══════════════════════════════════════════════════════════════════════════
 const PDFBuilder = (() => {
 
   const C = CONFIG.PDF;
 
-  const footer = (doc, pg, W, H, M, sources, date) => {
-    doc.setDrawColor(...C.bl); doc.setLineWidth(0.3);
-    doc.line(M, H - 10, W - M, H - 10);
-    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(...C.sl5);
-    doc.text(`DocAtivo · FIEPI/SESI · ${sources.slice(0, 2).join(', ')} · ${date}`, M, H - 5);
-    doc.text(`Pág. ${pg}`, W - M, H - 5, { align: 'right' });
+  // ── Utilitários de desenho ──────────────────────────────────────────────
+  const setFont  = (doc, style='normal', sz=9, color=C.sl) => {
+    doc.setFont('helvetica', style);
+    doc.setFontSize(sz);
+    doc.setTextColor(...color);
+  };
+  const setFill  = (doc, color) => doc.setFillColor(...color);
+  const setDraw  = (doc, color, lw=0.3) => {
+    doc.setDrawColor(...color);
+    doc.setLineWidth(lw);
   };
 
-  const hbar = (doc, x, y, w, h, data, title, color) => {
-    if (!data?.length) return;
-    const maxV  = Math.max(...data.map(d => d.v), 1);
-    const barH  = Math.min(9, (h - 16) / data.length - 2);
-    const lblW  = 50, barW = w - lblW - 6;
+  const footer = (doc, pg, W, H, M, sources, date) => {
+    setDraw(doc, C.bl, 0.3);
+    doc.line(M, H-10, W-M, H-10);
+    setFont(doc,'normal',7,C.sl5);
+    const srcStr = sources.length > 2
+      ? sources.slice(0,2).join(', ')+`+${sources.length-2}`
+      : sources.join(', ');
+    doc.text(`DocAtivo  ·  FIEPI/SESI DR/PI  ·  ${srcStr}  ·  ${date}`, M, H-5);
+    doc.text(`Pág. ${pg}`, W-M, H-5, {align:'right'});
+  };
 
-    doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.sl);
-    doc.text(title, x, y + 6);
+  // ── Gráfico de barras horizontais ────────────────────────────────────────
+  const barChart = (doc, x, y, w, h, data, title, color, opts={}) => {
+    if(!data?.length) return;
+    const maxV  = Math.max(...data.map(d=>d.v), 1);
+    const rows  = data.length;
+    const bH    = Math.min(8.5, (h - 20) / rows - 1.8);
+    const lblW  = opts.lblW || 52;
+    const barW  = w - lblW - 10;
+
+    // Título da seção
+    setFont(doc,'bold',8.5,C.sl);
+    doc.text(title, x, y+6);
+
+    // Linha divisória
+    setDraw(doc, C.bl, 0.2);
+    doc.line(x, y+8, x+w, y+8);
 
     data.forEach((d, i) => {
-      const ry  = y + 12 + i * (barH + 2.5);
-      const lbl = d.l.length > 22 ? d.l.slice(0, 22) + '…' : d.l;
+      const ry = y + 12 + i*(bH + 1.8);
+      const lbl = d.l.length > (opts.maxLbl||24) ? d.l.slice(0, opts.maxLbl||24)+'…' : d.l;
 
-      doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...C.sl5);
-      doc.text(lbl, x, ry + barH / 2, { baseline: 'middle' });
+      // Label
+      setFont(doc,'normal',6.5,C.sl5);
+      doc.text(lbl, x, ry + bH/2, {baseline:'middle'});
 
-      // Fundo da barra
-      doc.setFillColor(239, 246, 255);
-      doc.roundedRect(x + lblW, ry, barW, barH, 0.8, 0.8, 'F');
+      // Track da barra (fundo)
+      setFill(doc, [240,246,255]);
+      doc.roundedRect(x+lblW, ry, barW, bH, 0.8, 0.8, 'F');
 
       // Barra preenchida
-      const bw = Math.max(1, (d.v / maxV) * barW);
-      doc.setFillColor(...color);
-      doc.roundedRect(x + lblW, ry, bw, barH, 0.8, 0.8, 'F');
+      const bw = Math.max(1.5, (d.v/maxV)*barW);
+      setFill(doc, color);
+      doc.roundedRect(x+lblW, ry, bw, bH, 0.8, 0.8, 'F');
 
       // Valor
-      doc.setFontSize(6); doc.setFont('helvetica', 'bold');
-      if (bw > 10) {
+      setFont(doc,'bold',6,[]);
+      if(bw > 12){
         doc.setTextColor(...C.w);
-        doc.text(`${d.v}`, x + lblW + bw - 2, ry + barH / 2, { align: 'right', baseline: 'middle' });
+        doc.text(`${d.v}`, x+lblW+bw-2, ry+bH/2, {align:'right', baseline:'middle'});
       } else {
         doc.setTextColor(...C.sl);
-        doc.text(`${d.v}`, x + lblW + bw + 2, ry + barH / 2, { baseline: 'middle' });
+        doc.text(`${d.v}`, x+lblW+bw+2, ry+bH/2, {baseline:'middle'});
+      }
+
+      // Percentual ao lado
+      if(opts.showPct && d.total > 0){
+        const pct = Math.round(d.v/d.total*100);
+        setFont(doc,'normal',5.5,C.sl5);
+        doc.text(`${pct}%`, x+w, ry+bH/2, {align:'right', baseline:'middle'});
       }
     });
   };
 
+  // ── KPI box na capa ──────────────────────────────────────────────────────
+  const kpiBox = (doc, x, y, w, h, label, value, sub, color) => {
+    // Fundo com gradiente simulado (dois retângulos)
+    setFill(doc, color);
+    doc.roundedRect(x, y, w, h, 3, 3, 'F');
+    // Highlight superior
+    doc.setFillColor(255,255,255,0.08);
+    doc.roundedRect(x, y, w, h*0.4, 3, 3, 'F');
+    // Borda suave
+    setDraw(doc,[255,255,255,0.2],0.3);
+    doc.roundedRect(x, y, w, h, 3, 3, 'S');
+
+    setFont(doc,'normal',6.5,[191,219,254]);
+    doc.text(label.toUpperCase(), x+w/2, y+7, {align:'center'});
+
+    setFont(doc,'bold',20,C.w);
+    doc.text(String(value), x+w/2, y+20, {align:'center'});
+
+    if(sub){
+      setFont(doc,'normal',5.5,[191,219,254]);
+      doc.text(sub, x+w/2, y+h-4, {align:'center'});
+    }
+  };
+
   const build = (records, sources) => {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('landscape', 'mm', 'a4');
-    const W = 297, H = 210, M = 13;
+    const {jsPDF} = window.jspdf;
+    const doc  = new jsPDF('landscape','mm','a4');
+    const W=297, H=210, M=14;
     const st   = Analytics.computeStats(records);
     const date = new Date().toLocaleDateString('pt-BR');
+    const ativos   = records.filter(r=>r.status==='Ativo');
+    const baixados = records.filter(r=>r.status==='Baixado');
 
-    // ── CAPA ────────────────────────────────────────────────────────────
-    doc.setFillColor(...C.b); doc.rect(0, 0, W, H, 'F');
-    doc.setFillColor(59, 130, 246); doc.triangle(W - 80, 0, W, 0, W, H * 0.65, 'F');
+    // ══════════════════════════════════════════════════════════════
+    //  CAPA
+    // ══════════════════════════════════════════════════════════════
+    setFill(doc, C.b); doc.rect(0,0,W,H,'F');
+    // Acento decorativo (triângulo azul mais claro)
+    doc.setFillColor(59,130,246);
+    doc.triangle(W-90,0, W,0, W,H*0.7,'F');
+    // Gradiente simulado no canto inferior
+    doc.setFillColor(15,40,80,0.5);
+    doc.rect(0,H*0.75,W,H*0.25,'F');
 
-    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(191, 219, 254);
-    doc.text('SISTEMA FIEPI  ·  SESI PIAUÍ  ·  DEPARTAMENTO REGIONAL', W / 2, 20, { align: 'center' });
+    // Linha de topo
+    doc.setFillColor(14,165,201);
+    doc.rect(0,0,W,3,'F');
 
-    doc.setFontSize(28); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.w);
-    doc.text('RELATÓRIO DE PATRIMÔNIO', W / 2, 38, { align: 'center' });
+    // Logotipo / título da organização
+    setFont(doc,'bold',8,[191,219,254]);
+    doc.text('SISTEMA FIEPI  ·  SESI PIAUÍ  ·  DEPARTAMENTO REGIONAL', W/2, 16, {align:'center'});
 
-    doc.setFontSize(13); doc.setFont('helvetica', 'normal'); doc.setTextColor(191, 219, 254);
-    doc.text('Inventário de Condicionadores de Ar', W / 2, 48, { align: 'center' });
+    // Linha decorativa
+    setDraw(doc,[255,255,255,0.2],0.5);
+    doc.line(W/2-60,20,W/2+60,20);
+
+    // Título principal
+    setFont(doc,'bold',32,C.w);
+    doc.text('RELATÓRIO DE', W/2,34,{align:'center'});
+    doc.text('PATRIMÔNIO', W/2,46,{align:'center'});
+
+    // Subtítulo
+    setFont(doc,'normal',11,[191,219,254]);
+    doc.text('Inventário de Condicionadores de Ar', W/2,55,{align:'center'});
 
     // KPI boxes na capa
-    const boxes = [
-      { l: 'Total',      v: st.total    },
-      { l: 'Ativos',     v: st.ativos   },
-      { l: 'Baixados',   v: st.baixados },
-      { l: 'Taxa Ativo', v: `${st.pct}%` },
-      { l: 'Alertas',    v: st.alertas  },
+    const bW=44,bH=34,gap=6;
+    const totalW = 5*(bW+gap)-gap;
+    const sx = (W-totalW)/2;
+    const kpis = [
+      {l:'Total',     v:st.total,    s:`${st.filiais} filiais`, c:C.b},
+      {l:'Ativos',    v:st.ativos,   s:`${st.pct}% do total`,   c:C.g},
+      {l:'Baixados',  v:st.baixados, s:`${(100-st.pct).toFixed(1)}%`,c:C.r},
+      {l:'Taxa Ativo',v:`${st.pct}%`,s:'índice',                c:[14,165,201]},
+      {l:'Alertas',   v:st.alertas,  s:'acima de 15 anos',      c:C.a},
     ];
-    const bW = 44, bH = 32, gap = 7;
-    const startX = (W - (boxes.length * (bW + gap) - gap)) / 2;
-    boxes.forEach((b, i) => {
-      const bx = startX + i * (bW + gap);
-      doc.setFillColor(255, 255, 255, 0.12); doc.roundedRect(bx, 65, bW, bH, 3, 3, 'F');
-      doc.setDrawColor(255, 255, 255, 0.25); doc.setLineWidth(0.3); doc.roundedRect(bx, 65, bW, bH, 3, 3, 'S');
-      doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(191, 219, 254);
-      doc.text(b.l.toUpperCase(), bx + bW / 2, 74, { align: 'center' });
-      doc.setFontSize(20); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.w);
-      doc.text(String(b.v), bx + bW / 2, 87, { align: 'center' });
+    kpis.forEach((k,i)=>kpiBox(doc, sx+i*(bW+gap), 68, bW, bH, k.l, k.v, k.s, k.c));
+
+    // Metadados
+    setFont(doc,'normal',8,[191,219,254]);
+    doc.text(`Data de referência: ${date}`, W/2,120,{align:'center'});
+    setFont(doc,'normal',7.5,[100,130,180]);
+    doc.text(`Fontes: ${sources.join(' · ')}`,W/2,127,{align:'center'});
+    setFont(doc,'italic',7,[100,130,180]);
+    doc.text('Gerado automaticamente por DocAtivo',W/2,133,{align:'center'});
+
+    footer(doc,1,W,H,M,sources,date);
+
+    // ══════════════════════════════════════════════════════════════
+    //  RESUMO EXECUTIVO (pág. 2)
+    // ══════════════════════════════════════════════════════════════
+    doc.addPage('a4','landscape');
+    setFill(doc,C.b); doc.rect(0,0,W,12,'F');
+    setFont(doc,'bold',9,C.w);
+    doc.text('RESUMO EXECUTIVO',W/2,8,{align:'center'});
+    setFill(doc,C.bg); doc.rect(0,12,W,H-22,'F');
+
+    // Cards de métricas (linha superior)
+    const cardY=16, cardH=26, cardW=(W-2*M-3*6)/4;
+    const cards=[
+      {l:'Total de Bens',  v:st.total,    u:'equipamentos',   c:C.b},
+      {l:'Ativos',         v:st.ativos,   u:`${st.pct}% do total`, c:C.g},
+      {l:'Baixados',       v:st.baixados, u:`${(100-st.pct).toFixed(1)}% do total`, c:C.r},
+      {l:'Precisam revisão',v:st.alertas, u:'≥ 15 anos de uso', c:C.a},
+    ];
+    cards.forEach((k,i)=>{
+      const cx=M+i*(cardW+6);
+      setFill(doc,k.c); doc.roundedRect(cx,cardY,cardW,cardH,2,2,'F');
+      setFont(doc,'normal',6.5,[255,255,255,0.6]);
+      doc.text(k.l.toUpperCase(), cx+cardW/2, cardY+6, {align:'center'});
+      setFont(doc,'bold',18,C.w);
+      doc.text(String(k.v), cx+cardW/2, cardY+18, {align:'center'});
+      setFont(doc,'normal',5.5,[255,255,255,0.55]);
+      doc.text(k.u, cx+cardW/2, cardY+24, {align:'center'});
     });
 
-    doc.setFontSize(8.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(191, 219, 254);
-    doc.text([`Referência: ${date}`, `Fontes: ${sources.join(' · ')}`, 'Gerado por DocAtivo'],
-      W / 2, 118, { align: 'center', lineHeightFactor: 1.8 });
-    footer(doc, 1, W, H, M, sources, date);
+    // Insights automáticos
+    const insY = cardY+cardH+8;
+    setFont(doc,'bold',8.5,C.sl);
+    doc.text('ANÁLISE DIAGNÓSTICA', M, insY+5);
+    setDraw(doc,C.bl,0.2); doc.line(M,insY+7,W-M,insY+7);
 
-    // ── DASHBOARD ───────────────────────────────────────────────────────
-    doc.addPage('a4', 'landscape');
-    doc.setFillColor(...C.b); doc.rect(0, 0, W, 12, 'F');
-    doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.w);
-    doc.text('DASHBOARD ANALÍTICO', W / 2, 8, { align: 'center' });
-    doc.setFillColor(...C.bg); doc.rect(0, 12, W, H - 22, 'F');
+    const topFilial  = st.byFilial[0];
+    const topMarca   = st.byMarca[0];
+    const topTipo    = st.byTipo[0];
+    const taxaAtivo  = st.pct;
+    const hasAlertas = st.alertas > 0;
 
-    const cW = (W - M * 2 - 12) / 2;
-    doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.sl);
-    doc.text('DISTRIBUIÇÃO', M, 22);
-    doc.setDrawColor(...C.bl); doc.setLineWidth(0.3); doc.line(M, 24, W - M, 24);
+    const insights = [
+      `📍 Maior concentração de equipamentos: ${topFilial?.[0] || '—'} (${topFilial?.[1]?.total || 0} unidades, ${topFilial?.[1]?.total ? Math.round(topFilial[1].ativo/topFilial[1].total*100) : 0}% ativos).`,
+      `🏷️ Marca predominante: ${topMarca?.[0] || '—'} com ${topMarca?.[1] || 0} equipamentos (${st.total ? Math.round((topMarca?.[1]||0)/st.total*100) : 0}% do inventário).`,
+      `🔧 Tipo mais comum: ${topTipo?.[0] || '—'} — ${topTipo?.[1] || 0} unidades (${st.total ? Math.round((topTipo?.[1]||0)/st.total*100) : 0}% do total).`,
+      taxaAtivo >= 80
+        ? `✅ Taxa de atividade elevada (${taxaAtivo}%) — frota em bom estado operacional.`
+        : `⚠️ Taxa de atividade baixa (${taxaAtivo}%) — ${st.baixados} equipamentos foram baixados e devem ser revisados.`,
+      hasAlertas
+        ? `⏰ ${st.alertas} equipamento(s) com mais de 15 anos de uso ativo — recomenda-se revisão técnica ou substituição programada.`
+        : '✅ Nenhum equipamento ativo supera 15 anos de uso.',
+    ];
 
-    hbar(doc, M,          26, cW, 82, st.byFilial.slice(0, 7).map(([l, d]) => ({ l, v: d.total })), 'Por Filial', C.b);
-    hbar(doc, M + cW + 12, 26, cW, 82, st.byTipo.slice(0, 7).map(([l, v]) => ({ l, v })), 'Por Tipo', C.p);
+    insights.forEach((ins,i) => {
+      setFont(doc,'normal',8,C.sl);
+      const lines = doc.splitTextToSize(ins, W-2*M-4);
+      const rowY  = insY+14 + i*12;
+      if(i%2===0){ setFill(doc,[240,246,255]); doc.rect(M,rowY-3,W-2*M,10,'F'); }
+      doc.text(lines[0], M+3, rowY+2);
+    });
 
-    doc.text('CAPACIDADE & MARCAS', M, 118); doc.line(M, 120, W - M, 120);
-    hbar(doc, M,          122, cW, 65, st.byCap.filter(([l]) => l !== 'Não informado').map(([l, v]) => ({ l, v })), 'Por Capacidade (BTUs)', C.a);
-    hbar(doc, M + cW + 12, 122, cW, 65, st.byMarca.slice(0, 7).map(([l, v]) => ({ l, v })), 'Por Marca', C.g);
-    footer(doc, 2, W, H, M, sources, date);
+    footer(doc,2,W,H,M,sources,date);
 
-    // ── TABELA DETALHADA ────────────────────────────────────────────────
-    const activeRecs = records.filter(r => r.status === 'Ativo');
+    // ══════════════════════════════════════════════════════════════
+    //  DASHBOARD (pág. 3)
+    // ══════════════════════════════════════════════════════════════
+    doc.addPage('a4','landscape');
+    setFill(doc,C.b); doc.rect(0,0,W,12,'F');
+    setFont(doc,'bold',9,C.w);
+    doc.text('DASHBOARD — ANÁLISE VISUAL DO INVENTÁRIO',W/2,8,{align:'center'});
+    setFill(doc,C.bg); doc.rect(0,12,W,H-22,'F');
+
+    const cW=(W-2*M-12)/2;
+    const cH=75;
+
+    // Quadrante superior
+    setFont(doc,'bold',8,C.sl);
+    doc.text('DISTRIBUIÇÃO DO INVENTÁRIO',M,21);
+    setDraw(doc,C.bl,0.2); doc.line(M,23,W-M,23);
+
+    barChart(doc, M, 25, cW, cH,
+      st.byFilial.slice(0,7).map(([l,d])=>({l,v:d.total})),
+      'Por Filial',C.b,{lblW:55,maxLbl:22});
+
+    barChart(doc, M+cW+12, 25, cW, cH,
+      st.byTipo.slice(0,7).map(([l,v])=>({l,v})),
+      'Por Tipo de Equipamento',C.p,{lblW:48,maxLbl:20});
+
+    // Quadrante inferior
+    doc.text('CAPACIDADE & MARCAS',M,108);
+    doc.line(M,110,W-M,110);
+
+    barChart(doc, M, 112, cW, 70,
+      st.byCap.filter(([l])=>l!=='Não informado').map(([l,v])=>({l,v})),
+      'Por Faixa de Capacidade (BTUs)',C.a,{lblW:44,maxLbl:20});
+
+    barChart(doc, M+cW+12, 112, cW, 70,
+      st.byMarca.slice(0,7).map(([l,v])=>({l,v})),
+      'Por Marca',C.g,{lblW:44,maxLbl:20});
+
+    footer(doc,3,W,H,M,sources,date);
+
+    // ══════════════════════════════════════════════════════════════
+    //  TABELA RESUMO POR FILIAL (pág. 4)
+    // ══════════════════════════════════════════════════════════════
     doc.autoTable({
-      startY: 16, margin: { top: 16, left: M, right: M },
-      head: [['Nº', 'Filial', 'Tipo', 'Marca', 'Capacidade', 'Inv.', 'Cód. Bem', 'End.', 'Ano', 'Uso', 'Status', 'Alerta']],
-      body: activeRecs.map((r, i) => [
-        i + 1, r.filialNome, r.tipo, r.marca, r.capacidadeLabel || '—',
-        r.inverter ? 'Sim' : 'Não', r.codBem, r.endereco,
-        r.anoAquisicao || '—', r.tempoUso != null ? `${r.tempoUso}a` : '—',
-        r.status, r.alerta ? '⚠️' : '',
-      ]),
-      headStyles: { fillColor: C.g, textColor: C.w, fontSize: 7, fontStyle: 'bold', halign: 'center' },
-      bodyStyles: { fontSize: 6.5, textColor: C.sl, cellPadding: 1.5 },
-      alternateRowStyles: { fillColor: [236, 253, 245] },
-      columnStyles: {
-        0:  { halign: 'center', cellWidth: 8  },
-        1:  { cellWidth: 40 }, 2: { cellWidth: 28 }, 3: { cellWidth: 20 },
-        4:  { halign: 'center', cellWidth: 24 },
-        5:  { halign: 'center', cellWidth: 12 },
-        6:  { halign: 'center', cellWidth: 22 },
-        7:  { halign: 'center', cellWidth: 16 },
-        8:  { halign: 'center', cellWidth: 12 },
-        9:  { halign: 'center', cellWidth: 14 },
-        10: { halign: 'center', cellWidth: 16 },
-        11: { halign: 'center', cellWidth: 12 },
+      startY:16, margin:{top:16,left:M,right:M},
+      head:[['Filial','Total','Ativos','Baixados','Taxa Ativo','Alertas 15+a']],
+      body:st.byFilial.map(([n,d]) => {
+        const alerts = records.filter(r=>r.filialNome===n && r.alerta).length;
+        const pct    = d.total ? Math.round(d.ativo/d.total*100) : 0;
+        return [n, d.total, d.ativo, d.baixado, `${pct}%`, alerts||'—'];
+      }),
+      headStyles:{fillColor:C.b,textColor:C.w,fontSize:8,fontStyle:'bold',halign:'center'},
+      bodyStyles:{fontSize:8,textColor:C.sl,cellPadding:2.5},
+      alternateRowStyles:{fillColor:[240,246,255]},
+      columnStyles:{
+        0:{cellWidth:80},
+        1:{halign:'center',cellWidth:20},2:{halign:'center',cellWidth:20},
+        3:{halign:'center',cellWidth:20},4:{halign:'center',cellWidth:20},
+        5:{halign:'center',cellWidth:20},
       },
-      didParseCell: (data) => {
-        if (data.section !== 'body') return;
-        const r = activeRecs[data.row.index];
-        if (r?.alerta) {
-          data.cell.styles.fillColor = [255, 243, 199];
-          data.cell.styles.textColor = [146, 64, 14];
+      didParseCell:(d)=>{
+        if(d.section!=='body') return;
+        if(d.column.index===5 && d.cell.raw > 0){
+          d.cell.styles.fillColor=[254,243,199];
+          d.cell.styles.textColor=[146,64,14];
+          d.cell.styles.fontStyle='bold';
         }
-        if (data.column.index === 10) {
-          data.cell.styles.fillColor  = [209, 250, 229];
-          data.cell.styles.textColor  = [6, 95, 70];
-          data.cell.styles.fontStyle  = 'bold';
+        if(d.column.index===4){
+          const v=parseInt(d.cell.raw);
+          if(v>=80){d.cell.styles.textColor=[6,95,70];d.cell.styles.fontStyle='bold';}
+          else if(v<50){d.cell.styles.textColor=[153,27,27];d.cell.styles.fontStyle='bold';}
         }
       },
-      didDrawPage: (data) => {
-        doc.setFillColor(...C.b); doc.rect(0, 0, W, 12, 'F');
-        doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.w);
-        doc.text('INVENTÁRIO — EQUIPAMENTOS ATIVOS', W / 2, 8, { align: 'center' });
-        footer(doc, data.pageNumber + 2, W, H, M, sources, date);
+      didDrawPage:()=>{
+        setFill(doc,C.b); doc.rect(0,0,W,12,'F');
+        setFont(doc,'bold',9,C.w);
+        doc.text('RESUMO POR FILIAL',W/2,8,{align:'center'});
+        footer(doc,4,W,H,M,sources,date);
       },
     });
+
+    // ══════════════════════════════════════════════════════════════
+    //  INVENTÁRIO DETALHADO — ATIVOS (pág. 5+)
+    // ══════════════════════════════════════════════════════════════
+    let pageNum = 5;
+    if(ativos.length > 0){
+      doc.autoTable({
+        startY:16, margin:{top:16,left:M,right:M},
+        head:[['Nº','Filial','Tipo','Marca','Capacidade','Inv.','Cód. Bem','End.','Ano','Uso','Status']],
+        body:ativos.map((r,i)=>[
+          i+1,
+          r.filialNome.length>24 ? r.filialNome.slice(0,24)+'…' : r.filialNome,
+          r.tipo, r.marca, r.capacidadeLabel||'—',
+          r.inverter ? 'Sim':'Não',
+          r.codBem, r.endereco||'—',
+          r.anoAquisicao||'—',
+          r.tempoUso!=null?`${r.tempoUso}a`:'—',
+          r.status,
+        ]),
+        headStyles:{fillColor:C.g,textColor:C.w,fontSize:7,fontStyle:'bold',halign:'center'},
+        bodyStyles:{fontSize:6.5,textColor:C.sl,cellPadding:1.5},
+        alternateRowStyles:{fillColor:[236,253,245]},
+        columnStyles:{
+          0:{halign:'center',cellWidth:8},
+          1:{cellWidth:40},2:{cellWidth:26},3:{cellWidth:18},
+          4:{halign:'center',cellWidth:22},5:{halign:'center',cellWidth:11},
+          6:{halign:'center',cellWidth:20},7:{halign:'center',cellWidth:14},
+          8:{halign:'center',cellWidth:11},9:{halign:'center',cellWidth:12},
+          10:{halign:'center',cellWidth:14},
+        },
+        didParseCell:(d)=>{
+          if(d.section!=='body') return;
+          const r=ativos[d.row.index];
+          if(r?.alerta){
+            d.cell.styles.fillColor=[255,243,199];
+            d.cell.styles.textColor=[146,64,14];
+          }
+          if(d.column.index===10){
+            d.cell.styles.fillColor=[209,250,229];
+            d.cell.styles.textColor=[6,95,70];
+            d.cell.styles.fontStyle='bold';
+          }
+        },
+        didDrawPage:(data)=>{
+          setFill(doc,C.b); doc.rect(0,0,W,12,'F');
+          setFont(doc,'bold',9,C.w);
+          doc.text('INVENTÁRIO DETALHADO — EQUIPAMENTOS ATIVOS',W/2,8,{align:'center'});
+          footer(doc,data.pageNumber+3,W,H,M,sources,date);
+        },
+      });
+      pageNum = doc.getNumberOfPages();
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  INVENTÁRIO — BAIXADOS (pág. final se houver)
+    // ══════════════════════════════════════════════════════════════
+    if(baixados.length > 0){
+      doc.autoTable({
+        startY:16, margin:{top:16,left:M,right:M},
+        head:[['Nº','Filial','Tipo','Marca','Capacidade','Cód. Bem','Dt. Aquisição','Dt. Baixa','Uso']],
+        body:baixados.map((r,i)=>[
+          i+1,
+          r.filialNome.length>28 ? r.filialNome.slice(0,28)+'…' : r.filialNome,
+          r.tipo, r.marca, r.capacidadeLabel||'—',
+          r.codBem, r.dtAquisicao||'—', r.dtBaixa||'—',
+          r.tempoUso!=null?`${r.tempoUso}a`:'—',
+        ]),
+        headStyles:{fillColor:C.r,textColor:C.w,fontSize:7,fontStyle:'bold',halign:'center'},
+        bodyStyles:{fontSize:6.5,textColor:C.sl,cellPadding:1.5},
+        alternateRowStyles:{fillColor:[254,226,226]},
+        columnStyles:{
+          0:{halign:'center',cellWidth:8},
+          1:{cellWidth:46},2:{cellWidth:26},3:{cellWidth:18},
+          4:{halign:'center',cellWidth:22},5:{halign:'center',cellWidth:22},
+          6:{halign:'center',cellWidth:18},7:{halign:'center',cellWidth:18},
+          8:{halign:'center',cellWidth:12},
+        },
+        didDrawPage:(data)=>{
+          setFill(doc,C.b); doc.rect(0,0,W,12,'F');
+          setFont(doc,'bold',9,C.w);
+          doc.text('INVENTÁRIO — EQUIPAMENTOS BAIXADOS',W/2,8,{align:'center'});
+          footer(doc,data.pageNumber+pageNum-1,W,H,M,sources,date);
+        },
+      });
+    }
 
     return doc.output('blob');
   };
