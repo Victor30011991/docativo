@@ -360,6 +360,15 @@ const Normalizer = (() => {
   const cleanStr = (s) =>
     String(s ?? '').normalize('NFC').replace(/\s+/g, ' ').trim();
 
+
+
+  /**
+   * Remove acentos/diacriticos para comparacoes de texto.
+   * "codigo" = deAccent("codigo" ou "codigo" ou "cod.")
+   * Essencial para headers de Excel/CSV com caracteres especiais.
+   */
+  const deAccent = (s) =>
+    String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
   /** Valida data no formato DD/MM/YYYY */
   const isDate = (s) => /^\d{2}\/\d{2}\/\d{4}$/.test(s);
 
@@ -464,7 +473,7 @@ const Normalizer = (() => {
     return !v || /^[\/\-\s]+$/.test(v);
   };
 
-  return { cleanStr, isDate, parseBTU, formatBTU, faixaBTU, parseMarca, parseTipo, anoDeData, nomeFilial, isEmpty };
+  return { cleanStr, deAccent, isDate, parseBTU, formatBTU, faixaBTU, parseMarca, parseTipo, anoDeData, nomeFilial, isEmpty };
 })();
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -646,23 +655,32 @@ const Parser = (() => {
     const colMap = {};
     ws.eachRow({ includeEmpty: false }, (row, ri) => {
       if (hdrRow !== -1) return;
-      const vals = row.values.map(v => Normalizer.cleanStr(String(v ?? '')).toLowerCase());
+      // deAccent remove acentos antes da comparacao: "codigo" bate em "codigo" e "codigo"
+      const vals = row.values.map(v => Normalizer.deAccent(String(v ?? '')));
       const score = vals.filter(v =>
         v.includes('filial') || v.includes('bem') || v.includes('descr') || v.includes('cod')
       ).length;
       if (score >= 2) {
         hdrRow = ri;
         vals.forEach((v, ci) => {
-          if (!ci) return; // ExcelJS usa índice 1-based
-          if (v.includes('filial') && !colMap.filial)   colMap.filial  = ci;
-          if (v.includes('cod') && v.includes('bem'))   colMap.codBem  = ci;
-          if (v.includes('descr'))                      colMap.desc    = ci;
-          if (v.includes('marca'))                      colMap.marca   = ci;
-          if (v.includes('grupo'))                      colMap.grupo   = ci;
-          if (v.includes('endere'))                     colMap.end     = ci;
-          if (v.includes('aquisi'))                     colMap.dtAq    = ci;
-          if (v.includes('baixa'))                      colMap.dtBx    = ci;
-          if (v.includes('item'))                       colMap.item    = ci;
+          if (!ci) return; // ExcelJS usa indice 1-based
+          // Filial: captura tanto "Filial" quanto "Filial (Cod)" quanto "Filial (Nome)"
+          if (v.includes('filial') && !v.includes('nome') && !colMap.filial) colMap.filial = ci;
+          // Codigo do Bem: "codigo do bem", "cod. bem", "cod. do bem"
+          if ((v.includes('cod') && v.includes('bem')) ||
+              (v.includes('codigo') && !v.includes('filial')))   colMap.codBem = ci;
+          // Descricao: "descricao", "descricao do bem", "descr. sint."
+          if (v.includes('descr') && !colMap.desc)              colMap.desc   = ci;
+          if (v.includes('marca'))                               colMap.marca  = ci;
+          if (v.includes('grupo'))                               colMap.grupo  = ci;
+          // Endereco: "endereco", "end."
+          if (v.includes('endere') || v === 'end.')              colMap.end    = ci;
+          // Datas
+          if ((v.includes('aquisi') || v.includes('dt. aqui') || v.includes('data aqui')) && !colMap.dtAq) colMap.dtAq = ci;
+          if ((v.includes('baixa')  || v.includes('dt. baix') || v.includes('data baix')) && !colMap.dtBx) colMap.dtBx = ci;
+          if (v.includes('item'))                                colMap.item   = ci;
+          // Status explícito (arquivos que trazem a coluna "Status")
+          if (v === 'status' || v === 'situacao')                colMap.status = ci;
         });
       }
     });
@@ -675,6 +693,12 @@ const Parser = (() => {
       const g = (k) => colMap[k] != null ? Normalizer.cleanStr(String(row.values[colMap[k]] ?? '')) : '';
       const filialRaw = g('filial');
       const m = filialRaw.match(/^(\w+)-(.*)/);
+      // Se o arquivo tem coluna Status explícita, usa ela para confirmar Baixado
+      const statusExplicito = colMap.status ? Normalizer.cleanStr(String(row.values[colMap.status] ?? '')) : '';
+      const dtBxVal = g('dtBx');
+      // dtBaixa: prioriza data válida; senão, infere pelo status explícito "Baixado"
+      const dtBaixaFinal = Normalizer.isDate(dtBxVal) ? dtBxVal :
+        (statusExplicito.toLowerCase().includes('baixad') ? '31/12/9999' : '');
       records.push(Enricher.buildRecord({
         filialCod: m ? m[1] : filialRaw,
         descricao: g('desc'),
@@ -682,7 +706,7 @@ const Parser = (() => {
         codBem: g('codBem'),
         endereco: g('end'),
         dtAq: g('dtAq'),
-        dtBaixa: g('dtBx'),
+        dtBaixa: dtBaixaFinal,
         item: g('item'),
       }, file.name));
     });
@@ -697,7 +721,8 @@ const Parser = (() => {
     if (lines.length < 2) throw new Error('CSV vazio ou inválido.');
 
     const sep = lines[0].includes(';') ? ';' : ',';
-    const hdrs = lines[0].split(sep).map(h => h.replace(/"/g, '').trim().toLowerCase());
+    // deAccent nos headers: "Codigo do Bem" e "Codigo do Bem" ambos viram "codigo do bem"
+    const hdrs = lines[0].split(sep).map(h => Normalizer.deAccent(h.replace(/"/g, '')));
 
     const ci = (kws) => {
       const i = hdrs.findIndex(h => kws.some(k => h.includes(k)));
@@ -705,16 +730,17 @@ const Parser = (() => {
     };
     const colMap = {
       filial: ci(['filial']),
-      codBem: ci(['cod', 'bem']),
+      codBem: ci(['cod', 'bem', 'codigo']),
       desc:   ci(['descr']),
       grupo:  ci(['grupo']),
       end:    ci(['endere']),
       dtAq:   ci(['aquisi']),
       dtBx:   ci(['baixa']),
       item:   ci(['item']),
+      status: ci(['status', 'situacao']),
     };
 
-    if (colMap.codBem === null) throw new Error('Coluna "Cod. do Bem" não encontrada no CSV.');
+    if (colMap.codBem === null) throw new Error('Coluna "Cod. do Bem" nao encontrada no CSV. Verifique o formato.');
 
     return lines.slice(1).map(line => {
       const vals = line.split(sep).map(v => v.replace(/"/g, '').trim());
